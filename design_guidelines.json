@@ -1,0 +1,122 @@
+{
+  "identity": {
+    "name": "SISR.io",
+    "theme": "dark",
+    "archetype": "The Terminal / Cyber-Lite",
+    "emotional_tone": "Precision, Technical, Focused, Future-proof",
+    "description": "A high-precision training platform for French IT students. The interface feels like a modern IDE or Command Center—dark, fast, and data-dense."
+  },
+  "typography": {
+    "font_family": {
+      "headings": "Space Grotesk, sans-serif",
+      "body": "Inter, sans-serif",
+      "code": "JetBrains Mono, monospace"
+    },
+    "scale": {
+      "h1": "text-4xl md:text-6xl font-bold tracking-tight",
+      "h2": "text-3xl md:text-4xl font-semibold tracking-tight",
+      "h3": "text-2xl font-medium tracking-tight",
+      "p": "text-base text-zinc-400 leading-relaxed",
+      "small": "text-sm text-zinc-500",
+      "code": "text-sm font-mono bg-zinc-900 px-1 py-0.5 rounded text-cyan-400"
+    },
+    "imports": [
+      "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@500;700&display=swap');"
+    ]
+  },
+  "colors": {
+    "base": {
+      "background": "#09090b",
+      "foreground": "#fafafa"
+    },
+    "brand": {
+      "primary": "#06b6d4",
+      "primary_hover": "#0891b2",
+      "secondary": "#6366f1",
+      "accent": "#10b981"
+    },
+    "semantic": {
+      "success": "#10b981",
+      "warning": "#f59e0b",
+      "error": "#f43f5e",
+      "info": "#3b82f6"
+    },
+    "surface": {
+      "card": "#18181b",
+      "border": "#27272a",
+      "input": "#09090b"
+    }
+  },
+  "components": {
+    "buttons": {
+      "primary": "bg-cyan-600 hover:bg-cyan-500 text-white font-medium shadow-[0_0_15px_rgba(6,182,212,0.3)] transition-all duration-300 rounded-md",
+      "secondary": "bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 transition-all rounded-md",
+      "ghost": "hover:bg-zinc-800/50 text-zinc-400 hover:text-white transition-all rounded-md",
+      "outline": "border border-zinc-700 text-zinc-300 hover:border-cyan-500 hover:text-cyan-400 bg-transparent transition-all rounded-md"
+    },
+    "cards": {
+      "default": "bg-zinc-900/50 backdrop-blur-md border border-zinc-800 rounded-lg p-6 hover:border-zinc-700 transition-colors",
+      "interactive": "group relative overflow-hidden bg-zinc-900 border border-zinc-800 hover:border-cyan-500/50 transition-all duration-300 rounded-lg p-6 hover:shadow-[0_0_20px_rgba(6,182,212,0.1)]",
+      "glass": "bg-black/40 backdrop-blur-xl border border-white/10 rounded-xl"
+    },
+    "inputs": {
+      "default": "bg-zinc-950 border border-zinc-800 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 text-zinc-100 placeholder:text-zinc-600 rounded-md h-10 px-3",
+      "label": "text-xs font-mono text-zinc-500 uppercase tracking-wider mb-2 block"
+    }
+  },
+  "layout_strategy": {
+    "dashboard": {
+      "type": "Bento Grid",
+      "container": "grid grid-cols-1 md:grid-cols-12 gap-6 p-6",
+      "sidebar": "fixed left-0 top-0 h-full w-64 bg-zinc-950 border-r border-zinc-800 hidden md:flex flex-col z-50",
+      "main_content": "md:pl-64 min-h-screen bg-black"
+    },
+    "marketing": {
+      "hero": "relative min-h-[80vh] flex items-center justify-center overflow-hidden bg-grid-white/[0.02]",
+      "section": "py-24 px-6 md:px-12 max-w-7xl mx-auto"
+    }
+  },
+  "visual_enhancers": {
+    "gradients": {
+      "hero_glow": "absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[500px] bg-cyan-500/20 blur-[100px] rounded-full opacity-50",
+      "text_gradient": "bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-indigo-500"
+    },
+    "textures": {
+      "grid": "bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]",
+      "dots": "bg-[radial-gradient(#ffffff1a_1px,transparent_1px)] [background-size:16px_16px]"
+    }
+  },
+  "motion": {
+    "page_transition": "animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out",
+    "hover_lift": "hover:-translate-y-1 transition-transform duration-300 ease-out",
+    "stagger_list": "space-y-2 [&>*]:animate-in [&>*]:fade-in [&>*]:slide-in-from-left-4 [&>*]:duration-500 [&>*]:fill-mode-backwards"
+  },
+  "assets": {
+    "images": {
+      "hero_bg": "https://images.unsplash.com/photo-1767477665602-ab4e96be7701?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzN8MHwxfHNlYXJjaHwxfHxhYnN0cmFjdCUyMGRhcmslMjB0ZWNobm9sb2d5JTIwbmV0d29yayUyMGJhY2tncm91bmQlMjBjeWFuJTIwYmx1ZXxlbnwwfHx8fDE3NzIzOTQwNTZ8MA&ixlib=rb-4.1.0&q=85",
+      "trainer_avatar": "https://images.unsplash.com/photo-1758874383169-36e9a554a607?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMjh8MHwxfHNlYXJjaHwzfHxwcm9mZXNzaW9uYWwlMjBwb3J0cmFpdCUyMG1hbiUyMGdsYXNzZXMlMjBvZmZpY2UlMjB0ZWNofGVufDB8fHx8MTc3MjM5NDA1N3ww&ixlib=rb-4.1.0&q=85",
+      "student_avatar": "https://images.unsplash.com/photo-1741699427768-fbb97fc21425?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Nzh8MHwxfHNlYXJjaHw0fHxzdHVkZW50JTIwcG9ydHJhaXQlMjB5b3VuZyUyMHdvbWFuJTIwbGFwdG9wJTIwbGlicmFyeXxlbnwwfHx8fDE3NzIzOTQwNTh8MA&ixlib=rb-4.1.0&q=85",
+      "server_room": "https://images.pexels.com/photos/5480781/pexels-photo-5480781.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940"
+    },
+    "icons": "Use 'lucide-react' for all icons. Use 'Server', 'Terminal', 'Cpu', 'Shield' icons often."
+  },
+  "instructions_to_main_agent": [
+    "INSTALL FONTS: Add the Google Fonts import to index.css immediately.",
+    "THEME SETUP: Ensure tailwind.config.js has the custom colors (zinc, cyan, indigo) configured.",
+    "NO LIGHT MODE: This is a dark-mode only app. Force 'dark' class on the html/body tag.",
+    "DATA-TESTID: Add data-testid to all interactive elements (e.g., login-btn, nav-dashboard).",
+    "LAYOUT: Use the 'Sidebar Layout' for all dashboard pages. Use 'Centered Layout' for Login/Register.",
+    "ROLE COLORS: Use Purple for Admin, Cyan for Trainer, Emerald for Student badges/highlights.",
+    "AI GRADING: When displaying AI feedback, use a 'typing' animation effect to simulate the AI thinking.",
+    "FRENCH LANGUAGE: All text must be in French. Use 'Connexion', 'Tableau de bord', 'Exercices', etc."
+  ],
+  "universal_guidelines": [
+    "Don't make generic centered layouts.",
+    "Create depth through layered design elements with z-index hierarchy.",
+    "Use glass-morphism effects with backdrop filters.",
+    "NEVER use AI assistant Emoji characters like 🤖🧠.",
+    "Every interaction needs micro-animations.",
+    "Use sonner for toasts.",
+    "Components MUST use named exports."
+  ]
+}
