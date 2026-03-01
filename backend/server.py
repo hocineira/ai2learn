@@ -210,7 +210,7 @@ async def get_categories():
 
 # ─── Exercise Routes ───
 
-@api_router.post("/exercises")
+@api_router.post("/exercises", status_code=201)
 async def create_exercise(data: ExerciseCreate, current_user: dict = Depends(auth_dependency)):
     if current_user["role"] not in ["admin", "formateur"]:
         raise HTTPException(status_code=403, detail="Formateur ou admin uniquement")
