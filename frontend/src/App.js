@@ -1,53 +1,74 @@
-import { useEffect } from "react";
-import "@/App.css";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import axios from "axios";
+import React, { useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from '@/contexts/AuthContext';
+import { Toaster } from '@/components/ui/sonner';
+import { Sidebar } from '@/components/Sidebar';
+import LoginPage from '@/pages/LoginPage';
+import AdminDashboard from '@/pages/AdminDashboard';
+import FormateurDashboard from '@/pages/FormateurDashboard';
+import EtudiantDashboard from '@/pages/EtudiantDashboard';
+import ExercisesPage from '@/pages/ExercisesPage';
+import ExerciseCreate from '@/pages/ExerciseCreate';
+import ExerciseTake from '@/pages/ExerciseTake';
+import UsersPage from '@/pages/UsersPage';
+import TrackingPage from '@/pages/TrackingPage';
+import ResultsPage from '@/pages/ResultsPage';
+import SubmissionsPage from '@/pages/SubmissionsPage';
+import axios from 'axios';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
-const Home = () => {
-  const helloWorldApi = async () => {
-    try {
-      const response = await axios.get(`${API}/`);
-      console.log(response.data.message);
-    } catch (e) {
-      console.error(e, `errored out requesting / api`);
-    }
-  };
+const ProtectedRoute = ({ children, roles }) => {
+  const { user, loading } = useAuth();
+  if (loading) return <div className="min-h-screen bg-[#09090b] flex items-center justify-center text-zinc-500">Chargement...</div>;
+  if (!user) return <Navigate to="/login" replace />;
+  if (roles && !roles.includes(user.role)) return <Navigate to="/dashboard" replace />;
+  return <Sidebar>{children}</Sidebar>;
+};
 
+const DashboardRouter = () => {
+  const { user } = useAuth();
+  if (user?.role === 'admin') return <AdminDashboard />;
+  if (user?.role === 'formateur') return <FormateurDashboard />;
+  return <EtudiantDashboard />;
+};
+
+const AuthGuard = ({ children }) => {
+  const { user, loading } = useAuth();
+  if (loading) return <div className="min-h-screen bg-[#09090b] flex items-center justify-center text-zinc-500">Chargement...</div>;
+  if (user) return <Navigate to="/dashboard" replace />;
+  return children;
+};
+
+const SeedInitializer = () => {
   useEffect(() => {
-    helloWorldApi();
+    axios.post(`${API}/seed`).catch(() => {});
   }, []);
-
-  return (
-    <div>
-      <header className="App-header">
-        <a
-          className="App-link"
-          href="https://emergent.sh"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <img src="https://avatars.githubusercontent.com/in/1201222?s=120&u=2686cf91179bbafbc7a71bfbc43004cf9ae1acea&v=4" />
-        </a>
-        <p className="mt-5">Building something incredible ~!</p>
-      </header>
-    </div>
-  );
+  return null;
 };
 
 function App() {
   return (
-    <div className="App">
-      <BrowserRouter>
+    <BrowserRouter>
+      <AuthProvider>
+        <SeedInitializer />
+        <Toaster theme="dark" position="top-right" />
         <Routes>
-          <Route path="/" element={<Home />}>
-            <Route index element={<Home />} />
-          </Route>
+          <Route path="/login" element={<AuthGuard><LoginPage /></AuthGuard>} />
+          <Route path="/dashboard" element={<ProtectedRoute><DashboardRouter /></ProtectedRoute>} />
+          <Route path="/exercises" element={<ProtectedRoute><ExercisesPage /></ProtectedRoute>} />
+          <Route path="/exercises/create" element={<ProtectedRoute roles={['admin', 'formateur']}><ExerciseCreate /></ProtectedRoute>} />
+          <Route path="/exercises/:id" element={<ProtectedRoute><ExerciseTake /></ProtectedRoute>} />
+          <Route path="/users" element={<ProtectedRoute roles={['admin']}><UsersPage /></ProtectedRoute>} />
+          <Route path="/tracking" element={<ProtectedRoute roles={['admin', 'formateur']}><TrackingPage /></ProtectedRoute>} />
+          <Route path="/results" element={<ProtectedRoute><ResultsPage /></ProtectedRoute>} />
+          <Route path="/results/:id" element={<ProtectedRoute><ResultsPage /></ProtectedRoute>} />
+          <Route path="/submissions" element={<ProtectedRoute roles={['admin', 'formateur']}><SubmissionsPage /></ProtectedRoute>} />
+          <Route path="/stats" element={<ProtectedRoute roles={['admin']}><AdminDashboard /></ProtectedRoute>} />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
-      </BrowserRouter>
-    </div>
+      </AuthProvider>
+    </BrowserRouter>
   );
 }
 
