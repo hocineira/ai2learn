@@ -1,57 +1,43 @@
-# SISR.io - Plateforme de Formation BTS SIO SISR
+# AI2Lean - Plateforme de Formation NETBFRS Academy
 
 ## Problem Statement
-Plateforme web de formation pour BTS SIO SISR permettant aux formateurs de suivre leurs étudiants en temps réel, avec des exercices interactifs (QCM + questions ouvertes) et correction automatique par IA (OpenAI GPT).
+Plateforme multi-formations de formation IT avec suivi temps reel, exercices interactifs et correction IA. Academie NETBFRS.
 
 ## Architecture
-- **Frontend**: React 19 + Tailwind CSS + Shadcn UI (dark theme "Cyber-Lite")
-- **Backend**: FastAPI + MongoDB + JWT Auth
-- **AI**: OpenAI GPT-5.2 via Emergent Integrations (auto-grading)
-- **Theme**: Dark mode only, Cyan/Indigo accents
+- Frontend: React + Tailwind + Shadcn UI (dark theme Cyan/Violet)
+- Backend: FastAPI + MongoDB + JWT
+- AI: OpenAI GPT-5.2 via Emergent Integrations
 
-## User Personas
-1. **Administrateur** - Gestion complète (utilisateurs, exercices, stats)
-2. **Formateur** - Création d'exercices, suivi étudiants temps réel, correction IA
-3. **Étudiant** - Passage d'exercices, consultation résultats
+## Formations
+1. **BTS SIO SISR** - Bac+2 : Admin Systeme, Reseaux, Cyber, Virtualisation, Services Infra, Scripting
+2. **Bachelor AIS** - Bac+3 : Admin & Securisation, Conception Infra, Cyber, Cloud, Supervision, Automatisation, Reseaux Avances, Gestion Projet
 
-## Core Requirements
-- Auth JWT (username/password)
-- 3 rôles: admin, formateur, étudiant
-- Exercices interactifs: QCM + questions ouvertes
-- Correction IA automatique (OpenAI GPT)
-- Suivi étudiants en temps réel
-- Interface française
-- Catégories SISR: Admin Système, Réseaux, Cyber, Virtualisation, Services Infra, Scripting
+## What's Implemented (01/03/2026)
+- [x] Multi-formations (BTS SISR + Bachelor AIS) avec switcher
+- [x] Auth JWT 3 roles (admin, formateur, etudiant)
+- [x] Exercices interactifs (QCM + questions ouvertes) par formation
+- [x] Correction IA automatique (OpenAI GPT)
+- [x] Suivi etudiants temps reel filtrable par formation
+- [x] Dashboard admin avec vue multi-formations
+- [x] Branding AI2Lean + logo NETBFRS
+- [x] Script deploiement VPS Debian 12 + procedure
 
-## What's Been Implemented (01/03/2026)
-- [x] Auth system (register/login/JWT)
-- [x] 3 rôles avec dashboards spécifiques
-- [x] CRUD exercices (QCM + questions ouvertes)
-- [x] Système de soumission avec auto-correction QCM
-- [x] Correction IA (OpenAI GPT) pour questions ouvertes
-- [x] Suivi étudiants temps réel
-- [x] Gestion utilisateurs (admin)
-- [x] Données de démonstration (seed)
-- [x] Interface française dark theme
-- [x] Filtrage par catégories
-
-## Prioritized Backlog
-### P0 (Next)
-- Édition d'exercices existants (page /exercises/edit/:id)
-- Profil utilisateur
+## Backlog
+### P0
+- Exercices lab VM (lien Proxmox + upload resultat)
+- Edition d'exercices existants
 
 ### P1
-- Exercices avec lien VM (upload résultat + correction IA)
-- Dashboard stats avancées (graphiques recharts)
-- Notification temps réel (WebSocket)
+- Graphiques de progression (recharts)
+- Notifications temps reel (WebSocket)
+- Export resultats (CSV/PDF)
 
 ### P2
-- Export résultats (CSV/PDF)
-- Mode hors-ligne pour exercices
-- Système de commentaires formateur
-- Progression par compétences SISR
+- Progression par competences referentiel
+- Commentaires formateur sur soumissions
+- Systeme de badges/gamification
 
-## Demo Credentials
-- Admin: admin / admin123
-- Formateur: formateur / formateur123
-- Étudiants: etudiant1, etudiant2, etudiant3 / etudiant123
+## Credentials Demo
+- admin/admin123 | formateur/formateur123
+- etudiant1, etudiant2/etudiant123 (BTS)
+- ais_student1, ais_student2/etudiant123 (AIS)
