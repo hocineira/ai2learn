@@ -4,10 +4,15 @@ import axios from 'axios';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Users, BookOpen, ClipboardList, BarChart3, TrendingUp, Clock } from 'lucide-react';
+import { Users, BookOpen, ClipboardList, TrendingUp, Clock, GraduationCap, Shield } from 'lucide-react';
+
+const formationMeta = {
+  'bts-sio-sisr': { name: 'BTS SIO SISR', color: 'text-cyan-400', bg: 'bg-cyan-500/10 border-cyan-500/20', icon: GraduationCap },
+  'bachelor-ais': { name: 'Bachelor AIS', color: 'text-violet-400', bg: 'bg-violet-500/10 border-violet-500/20', icon: Shield },
+};
 
 export default function AdminDashboard() {
-  const { getAuthHeaders, API } = useAuth();
+  const { getAuthHeaders, API, activeFormation } = useAuth();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -16,13 +21,11 @@ export default function AdminDashboard() {
       try {
         const res = await axios.get(`${API}/stats/overview`, { headers: getAuthHeaders() });
         setStats(res.data);
-      } catch (err) {
-        console.error(err);
-      }
+      } catch (err) { console.error(err); }
       setLoading(false);
     };
     fetchStats();
-  }, [API, getAuthHeaders]);
+  }, [API, getAuthHeaders, activeFormation]);
 
   if (loading) return <div className="text-zinc-500 text-center py-20">Chargement...</div>;
 
@@ -37,15 +40,48 @@ export default function AdminDashboard() {
     <div className="space-y-8" data-testid="admin-dashboard">
       <div>
         <h1 className="text-3xl md:text-4xl font-bold tracking-tight" style={{ fontFamily: 'Space Grotesk' }}>
-          Tableau de bord <span className="text-gradient">Admin</span>
+          Tableau de bord <span className="text-gradient">AI2Lean</span>
         </h1>
-        <p className="text-zinc-500 mt-1">Vue d'ensemble de la plateforme</p>
+        <p className="text-zinc-500 mt-1">Vue d'ensemble - NETBFRS Academy</p>
       </div>
 
-      {/* Stats grid */}
+      {/* Formation cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {stats?.formation_stats?.map((f) => {
+          const meta = formationMeta[f.id] || {};
+          const Icon = meta.icon || GraduationCap;
+          return (
+            <Card key={f.id} className={`bg-zinc-900/50 backdrop-blur-md border-zinc-800 hover:border-zinc-700 transition-all`}>
+              <CardContent className="p-5">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className={`w-10 h-10 rounded-lg ${meta.bg} border flex items-center justify-center`}>
+                    <Icon className={`w-5 h-5 ${meta.color}`} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-zinc-200" style={{ fontFamily: 'Space Grotesk' }}>{f.name}</p>
+                    <p className="text-xs text-zinc-500">{f.students} etudiant{f.students !== 1 ? 's' : ''}</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3 text-center">
+                  <div className="bg-zinc-800/30 rounded-md p-2">
+                    <p className="text-lg font-bold text-zinc-200" style={{ fontFamily: 'Space Grotesk' }}>{f.exercises}</p>
+                    <p className="text-[10px] text-zinc-500 uppercase">Exercices</p>
+                  </div>
+                  <div className="bg-zinc-800/30 rounded-md p-2">
+                    <p className="text-lg font-bold text-zinc-200" style={{ fontFamily: 'Space Grotesk' }}>{f.submissions}</p>
+                    <p className="text-[10px] text-zinc-500 uppercase">Soumissions</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+
+      {/* Global stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {statCards.map((s, i) => (
-          <Card key={s.label} className={`bg-zinc-900/50 backdrop-blur-md border-zinc-800 hover:border-zinc-700 transition-all animate-fade-in-up`} style={{ animationDelay: `${i * 0.05}s` }}>
+          <Card key={s.label} className="bg-zinc-900/50 backdrop-blur-md border-zinc-800 animate-fade-in-up" style={{ animationDelay: `${i * 0.05}s` }}>
             <CardContent className="p-5">
               <div className="flex items-center justify-between">
                 <div>
@@ -61,7 +97,7 @@ export default function AdminDashboard() {
         ))}
       </div>
 
-      {/* Performance row */}
+      {/* Performance + Recent */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="bg-zinc-900/50 backdrop-blur-md border-zinc-800">
           <CardHeader className="pb-3">
@@ -74,7 +110,7 @@ export default function AdminDashboard() {
               <span className="text-5xl font-bold text-gradient" style={{ fontFamily: 'Space Grotesk' }}>{stats?.avg_score || 0}%</span>
               <span className="text-zinc-500 text-sm mb-2">score moyen global</span>
             </div>
-            <Progress value={stats?.avg_score || 0} className="mt-4 h-2 bg-zinc-800 [&>div]:bg-gradient-to-r [&>div]:from-cyan-500 [&>div]:to-indigo-500" />
+            <Progress value={stats?.avg_score || 0} className="mt-4 h-2 bg-zinc-800 [&>div]:bg-gradient-to-r [&>div]:from-cyan-500 [&>div]:to-violet-500" />
             <div className="mt-3 flex gap-4 text-xs text-zinc-500">
               <span>{stats?.graded_submissions || 0} corrigees</span>
               <span>{(stats?.total_submissions || 0) - (stats?.graded_submissions || 0)} en attente</span>
@@ -105,9 +141,7 @@ export default function AdminDashboard() {
                     {sub.graded ? `${sub.score}/${sub.max_score}` : 'En attente'}
                   </Badge>
                 </div>
-              )) : (
-                <p className="text-zinc-500 text-sm py-4 text-center">Aucune activite recente</p>
-              )}
+              )) : <p className="text-zinc-500 text-sm py-4 text-center">Aucune activite recente</p>}
             </div>
           </CardContent>
         </Card>
