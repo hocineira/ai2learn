@@ -988,31 +988,21 @@ def guac_create_connection(token, name, hostname, protocol="rdp", port="3389", u
             "port": port,
             "username": username,
             "password": password,
-            "security": "nla",
+            "security": "any",
             "ignore-cert": "true",
-            "color-depth": "32",
             "resize-method": "display-update",
+            "enable-wallpaper": "false",
         },
-        "attributes": {"max-connections": "1", "max-connections-per-user": "1"}
+        "attributes": {"max-connections": "2", "max-connections-per-user": "2"}
     }
-    r = requests.post(
-        f"{GUAC_URL}/guacamole/api/session/data/mysql/connections?token={token}",
-        json=payload, verify=False
-    )
-    if r.status_code == 200:
-        return r.json()
-    # Try postgresql datasource
-    r = requests.post(
-        f"{GUAC_URL}/guacamole/api/session/data/postgresql/connections?token={token}",
-        json=payload, verify=False
-    )
-    if r.status_code == 200:
-        return r.json()
-    # Try default datasource
-    r = requests.post(
-        f"{GUAC_URL}/guacamole/api/session/data/default/connections?token={token}",
-        json=payload, verify=False
-    )
+    # Try postgresql first (detected datasource)
+    for ds in ["postgresql", "mysql", "default"]:
+        r = requests.post(
+            f"{GUAC_URL}/guacamole/api/session/data/{ds}/connections?token={token}",
+            json=payload, verify=False
+        )
+        if r.status_code == 200:
+            return r.json()
     r.raise_for_status()
     return r.json()
 
