@@ -12,6 +12,8 @@ from datetime import datetime, timezone
 import bcrypt
 import jwt
 import json
+import asyncio
+import base64
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -1035,8 +1037,8 @@ async def start_lab(data: LabStart, current_user: dict = Depends(auth_dependency
     if not exercise or exercise.get("exercise_type") != "lab":
         raise HTTPException(status_code=400, detail="Cet exercice n'est pas un lab")
     
-    # Check if lab already running
-    existing = await db.labs.find_one({"student_id": current_user["id"], "exercise_id": data.exercise_id, "status": "running"}, {"_id": 0})
+    # Check if lab already running or cloning
+    existing = await db.labs.find_one({"student_id": current_user["id"], "exercise_id": data.exercise_id, "status": {"$in": ["running", "cloning", "starting"]}}, {"_id": 0})
     if existing:
         return existing
     
@@ -1060,33 +1062,81 @@ async def start_lab(data: LabStart, current_user: dict = Depends(auth_dependency
     lab_name = f"lab-{current_user['username']}-{new_vmid}"
     
     try:
-        # Clone template
+        # Clone template (this returns immediately, Proxmox works in background)
         prox.nodes(PROXMOX_NODE).qemu(template_id).clone.post(
             newid=new_vmid,
             name=lab_name,
             full=1
         )
         
-        # Wait for clone to finish
+        # Save lab immediately with "cloning" status
+        lab_doc = {
+            "id": str(uuid.uuid4()),
+            "exercise_id": data.exercise_id,
+            "student_id": current_user["id"],
+            "student_name": current_user["full_name"],
+            "vmid": new_vmid,
+            "vm_name": lab_name,
+            "vm_ip": "en-attente",
+            "guac_connection_id": None,
+            "guac_url": None,
+            "status": "cloning",
+            "started_at": datetime.now(timezone.utc).isoformat(),
+            "stopped_at": None,
+        }
+        await db.labs.insert_one(lab_doc)
+        
+        # Launch background task to monitor clone, start VM, get IP, setup Guacamole
         import asyncio
-        for _ in range(30):
+        asyncio.create_task(_provision_lab_background(lab_doc["id"], new_vmid, lab_name, exercise))
+        
+        return {k: v for k, v in lab_doc.items() if k != "_id"}
+    
+    except Exception as e:
+        logger.error(f"Lab provisioning failed: {e}")
+        try:
+            prox.nodes(PROXMOX_NODE).qemu(new_vmid).delete()
+        except Exception:
+            pass
+        raise HTTPException(status_code=500, detail=f"Erreur de provisionnement: {str(e)}")
+
+
+async def _provision_lab_background(lab_id: str, vmid: int, lab_name: str, exercise: dict):
+    """Background task: wait for clone, start VM, get IP, create Guacamole connection."""
+    import asyncio
+    try:
+        prox = get_proxmox()
+        
+        # Phase 1: Wait for clone to finish (check lock, max 3 min)
+        logger.info(f"[Lab {lab_id}] Waiting for clone of VM {vmid}...")
+        clone_done = False
+        for i in range(90):  # 90 * 2s = 3 min max
             await asyncio.sleep(2)
             try:
-                vm_status = prox.nodes(PROXMOX_NODE).qemu(new_vmid).status.current.get()
+                vm_status = prox.nodes(PROXMOX_NODE).qemu(vmid).status.current.get()
                 if vm_status.get("lock") is None:
+                    clone_done = True
                     break
             except Exception:
                 pass
         
-        # Start VM
-        prox.nodes(PROXMOX_NODE).qemu(new_vmid).status.start.post()
+        if not clone_done:
+            logger.error(f"[Lab {lab_id}] Clone timeout for VM {vmid}")
+            await db.labs.update_one({"id": lab_id}, {"$set": {"status": "error", "vm_ip": "Clone timeout"}})
+            return
         
-        # Wait for VM to get IP
+        # Phase 2: Start VM
+        logger.info(f"[Lab {lab_id}] Clone done. Starting VM {vmid}...")
+        await db.labs.update_one({"id": lab_id}, {"$set": {"status": "starting"}})
+        prox.nodes(PROXMOX_NODE).qemu(vmid).status.start.post()
+        
+        # Phase 3: Wait for IP via QEMU Guest Agent (max 3 min)
+        logger.info(f"[Lab {lab_id}] Waiting for IP on VM {vmid}...")
         vm_ip = None
-        for _ in range(30):
+        for i in range(60):  # 60 * 3s = 3 min max
             await asyncio.sleep(3)
             try:
-                ifaces = prox.nodes(PROXMOX_NODE).qemu(new_vmid).agent("network-get-interfaces").get()
+                ifaces = prox.nodes(PROXMOX_NODE).qemu(vmid).agent("network-get-interfaces").get()
                 for iface in ifaces.get("result", []):
                     for addr in iface.get("ip-addresses", []):
                         ip = addr.get("ip-address", "")
@@ -1100,60 +1150,48 @@ async def start_lab(data: LabStart, current_user: dict = Depends(auth_dependency
             if vm_ip:
                 break
         
-        if not vm_ip:
-            vm_ip = "en-attente"
-        
-        # Create Guacamole connection
+        # Phase 4: Create Guacamole connection
         guac_conn_id = None
         guac_url = None
-        if vm_ip != "en-attente":
+        if vm_ip:
             try:
                 guac_token = guac_auth()
                 rdp_user = exercise.get("lab_username", "Administrator")
                 rdp_pass = exercise.get("lab_password", "Lab2026!")
                 conn = guac_create_connection(guac_token, lab_name, vm_ip, username=rdp_user, password=rdp_pass)
                 guac_conn_id = str(conn.get("identifier", ""))
-                # Build client URL
-                conn_str = f"{guac_conn_id}\0c\0mysql"
+                conn_str = f"{guac_conn_id}\0c\0postgresql"
                 encoded = base64.b64encode(conn_str.encode()).decode()
                 guac_url = f"{GUAC_URL}/guacamole/#/client/{encoded}"
             except Exception as e:
-                logger.error(f"Guacamole connection failed: {e}")
+                logger.error(f"[Lab {lab_id}] Guacamole connection failed: {e}")
                 guac_url = f"{GUAC_URL}/guacamole/"
         
-        lab_doc = {
-            "id": str(uuid.uuid4()),
-            "exercise_id": data.exercise_id,
-            "student_id": current_user["id"],
-            "student_name": current_user["full_name"],
-            "vmid": new_vmid,
-            "vm_name": lab_name,
-            "vm_ip": vm_ip,
+        # Update lab status
+        update = {
+            "status": "running",
+            "vm_ip": vm_ip or "en-attente",
             "guac_connection_id": guac_conn_id,
             "guac_url": guac_url,
-            "status": "running",
-            "started_at": datetime.now(timezone.utc).isoformat(),
-            "stopped_at": None,
         }
-        await db.labs.insert_one(lab_doc)
-        return {k: v for k, v in lab_doc.items() if k != "_id"}
+        await db.labs.update_one({"id": lab_id}, {"$set": update})
+        logger.info(f"[Lab {lab_id}] VM {vmid} ready! IP: {vm_ip}")
     
     except Exception as e:
-        logger.error(f"Lab provisioning failed: {e}")
-        # Cleanup on failure
-        try:
-            prox.nodes(PROXMOX_NODE).qemu(new_vmid).delete()
-        except Exception:
-            pass
-        raise HTTPException(status_code=500, detail=f"Erreur de provisionnement: {str(e)}")
+        logger.error(f"[Lab {lab_id}] Background provisioning error: {e}")
+        await db.labs.update_one({"id": lab_id}, {"$set": {"status": "error", "vm_ip": str(e)}})
 
 @api_router.get("/labs/status/{exercise_id}")
 async def get_lab_status(exercise_id: str, current_user: dict = Depends(auth_dependency)):
-    query = {"exercise_id": exercise_id, "status": "running"}
+    query = {"exercise_id": exercise_id, "status": {"$in": ["running", "cloning", "starting"]}}
     if current_user["role"] == "etudiant":
         query["student_id"] = current_user["id"]
     lab = await db.labs.find_one(query, {"_id": 0})
     if not lab:
+        # Also check for error state
+        err_lab = await db.labs.find_one({"exercise_id": exercise_id, "student_id": current_user.get("id"), "status": "error"}, {"_id": 0})
+        if err_lab:
+            return err_lab
         return {"status": "not_started"}
     
     # Refresh IP if needed
