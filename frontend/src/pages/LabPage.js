@@ -427,6 +427,29 @@ export default function LabPage() {
                     <p className="text-sm text-zinc-300">{submitted.ai_feedback}</p>
                   </div>
                 )}
+                {submitted.vm_validation && submitted.vm_validation.length > 0 && (
+                  <div className="mb-4 p-3 rounded-lg bg-violet-500/10 border border-violet-500/20">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Monitor className="w-4 h-4 text-violet-400" />
+                      <span className="text-xs font-medium text-violet-400">Validation VM (PowerShell)</span>
+                    </div>
+                    <div className="space-y-1.5">
+                      {submitted.vm_validation.map((v, i) => (
+                        <div key={i} className="flex items-center gap-2 text-xs">
+                          {v.passed
+                            ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+                            : <AlertCircle className="w-3.5 h-3.5 text-red-400 flex-shrink-0" />
+                          }
+                          <span className={v.passed ? 'text-emerald-400' : 'text-red-400'}>{v.name}</span>
+                          <span className="text-zinc-600 ml-auto font-mono truncate max-w-[200px]">{v.actual}</span>
+                        </div>
+                      ))}
+                    </div>
+                    {submitted.vm_validation_summary && (
+                      <p className="text-xs text-violet-400/80 mt-2 pt-2 border-t border-violet-500/20">{submitted.vm_validation_summary}</p>
+                    )}
+                  </div>
+                )}
                 <div className="space-y-3">
                   {submitted.answers?.map((a, i) => (
                     <div key={i} className="p-3 rounded-lg bg-zinc-800/30 border border-zinc-800/50">

@@ -433,6 +433,41 @@ async def grade_submission_with_ai(submission_id: str):
     
     formation_name = next((f["full_name"] for f in FORMATIONS if f["id"] == exercise.get("formation")), "Formation IT")
     
+    # ─── Lab VM Validation (PowerShell via QEMU Guest Agent) ───
+    vm_validation_results = []
+    if exercise.get("exercise_type") == "lab" and exercise.get("validation_scripts"):
+        lab = await db.labs.find_one({
+            "exercise_id": exercise["id"],
+            "student_id": submission["student_id"],
+            "status": "running"
+        }, {"_id": 0})
+        
+        if lab and lab.get("vmid"):
+            try:
+                prox = get_proxmox()
+                for script in exercise["validation_scripts"]:
+                    try:
+                        result = await run_powershell_on_vm(prox, lab["vmid"], script["command"])
+                        passed = script.get("expected", "").lower() in result.lower() if result else False
+                        vm_validation_results.append({
+                            "name": script["name"],
+                            "command": script["command"],
+                            "expected": script.get("expected", ""),
+                            "actual": result.strip() if result else "Erreur execution",
+                            "passed": passed
+                        })
+                    except Exception as e:
+                        vm_validation_results.append({
+                            "name": script["name"],
+                            "command": script["command"],
+                            "expected": script.get("expected", ""),
+                            "actual": f"Erreur: {str(e)[:100]}",
+                            "passed": False
+                        })
+            except Exception as e:
+                logger.error(f"VM validation failed: {e}")
+    
+    # ─── Build grading prompt ───
     prompt_parts = []
     open_question_ids = []
     for answer in submission["answers"]:
@@ -446,17 +481,42 @@ async def grade_submission_with_ai(submission_id: str):
                 f"Reponse etudiant: {answer['answer']}"
             )
     
-    if not prompt_parts:
+    if not prompt_parts and not vm_validation_results:
         return
+    
+    # Add VM validation results to the prompt
+    vm_context = ""
+    if vm_validation_results:
+        vm_context = "\n\n=== RESULTATS DE VALIDATION AUTOMATIQUE SUR LA VM ===\n"
+        passed_count = sum(1 for v in vm_validation_results if v["passed"])
+        total_checks = len(vm_validation_results)
+        vm_context += f"Tests reussis: {passed_count}/{total_checks}\n\n"
+        for v in vm_validation_results:
+            status = "REUSSI" if v["passed"] else "ECHOUE"
+            vm_context += f"[{status}] {v['name']}\n  Commande: {v['command']}\n  Attendu: {v['expected']}\n  Obtenu: {v['actual']}\n\n"
     
     grading_prompt = (
         f"Tu es un correcteur pour la formation '{formation_name}' de l'academie NETBFRS. "
         f"Evalue les reponses suivantes de l'etudiant. "
+    )
+    
+    if vm_validation_results:
+        grading_prompt += (
+            f"IMPORTANT: Des scripts PowerShell ont ete executes sur la VM de l'etudiant pour verifier son travail pratique. "
+            f"Prends en compte ces resultats dans ton evaluation. Un etudiant qui a correctement configure sa VM "
+            f"mais mal repondu aux questions doit quand meme avoir des points. "
+            f"Inversement, un etudiant qui repond bien mais n'a rien fait sur la VM perd des points. "
+        )
+    
+    grading_prompt += (
         f"Pour chaque question ouverte, attribue un score sur les points disponibles. "
         f"IMPORTANT: Utilise exactement les Question ID fournis dans ta reponse. "
         f"Reponds en JSON avec ce format exact: "
-        f'{{"scores": [{{"question_id": "COPIE_LE_QUESTION_ID_ICI", "points_earned": X, "feedback": "..."}}], "total_score": X, "general_feedback": "..."}}\n\n'
+        f'{{"scores": [{{"question_id": "COPIE_LE_QUESTION_ID_ICI", "points_earned": X, "feedback": "..."}}], '
+        f'"total_score": X, "general_feedback": "...", '
+        f'"vm_validation_summary": "Resume des verifications VM"}}\n\n'
         + "\n\n".join(prompt_parts)
+        + vm_context
     )
     
     chat = LlmChat(
@@ -518,6 +578,8 @@ async def grade_submission_with_ai(submission_id: str):
                 "score": total_score,
                 "score_20": score_20,
                 "ai_feedback": result.get("general_feedback", ""),
+                "vm_validation": vm_validation_results if vm_validation_results else None,
+                "vm_validation_summary": result.get("vm_validation_summary", ""),
                 "graded": True
             }}
         )
@@ -525,15 +587,68 @@ async def grade_submission_with_ai(submission_id: str):
         logger.error(f"Failed to parse AI response: {e}")
         await db.submissions.update_one(
             {"id": submission_id},
-            {"$set": {"ai_feedback": f"Evaluation IA en cours de traitement.", "graded": False}}
+            {"$set": {
+                "ai_feedback": "Evaluation IA en cours de traitement.",
+                "vm_validation": vm_validation_results if vm_validation_results else None,
+                "graded": False
+            }}
         )
+    
+    # ─── Auto-cleanup VM after lab grading ───
+    if exercise.get("exercise_type") == "lab":
+        try:
+            lab = await db.labs.find_one({
+                "exercise_id": exercise["id"],
+                "student_id": submission["student_id"],
+                "status": "running"
+            })
+            if lab:
+                prox = get_proxmox()
+                vmid = lab["vmid"]
+                # Stop VM
+                try:
+                    prox.nodes(PROXMOX_NODE).qemu(vmid).status.stop.post()
+                    logger.info(f"VM {vmid} stopped after lab submission")
+                except Exception:
+                    pass
+                # Wait a bit then delete
+                await asyncio.sleep(5)
+                try:
+                    prox.nodes(PROXMOX_NODE).qemu(vmid).delete()
+                    logger.info(f"VM {vmid} deleted after lab submission")
+                except Exception as e:
+                    logger.warning(f"Could not delete VM {vmid}: {e}")
+                # Delete Guacamole connection
+                if lab.get("guac_connection_id"):
+                    try:
+                        token = guac_auth()
+                        requests.delete(
+                            f"{GUAC_URL}/guacamole/api/session/data/postgresql/connections/{lab['guac_connection_id']}?token={token}",
+                            verify=False
+                        )
+                    except Exception:
+                        pass
+                # Update lab status
+                await db.labs.update_one(
+                    {"id": lab["id"]},
+                    {"$set": {"status": "completed", "stopped_at": datetime.now(timezone.utc).isoformat()}}
+                )
+        except Exception as e:
+            logger.error(f"VM cleanup failed: {e}")
 
 @api_router.post("/grade/{submission_id}")
 async def trigger_grading(submission_id: str, current_user: dict = Depends(auth_dependency)):
-    if current_user["role"] not in ["admin", "formateur"]:
-        raise HTTPException(status_code=403, detail="Acces refuse")
     if not EMERGENT_LLM_KEY:
         raise HTTPException(status_code=500, detail="Cle API IA non configuree")
+    
+    # Students can grade their own lab submissions
+    submission = await db.submissions.find_one({"id": submission_id}, {"_id": 0})
+    if not submission:
+        raise HTTPException(status_code=404, detail="Soumission introuvable")
+    
+    if current_user["role"] == "etudiant" and submission["student_id"] != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Acces refuse")
+    
     await grade_submission_with_ai(submission_id)
     updated = await db.submissions.find_one({"id": submission_id}, {"_id": 0})
     return updated
@@ -972,6 +1087,34 @@ GUAC_URL = os.environ.get('GUACAMOLE_URL', '')
 GUAC_USER = os.environ.get('GUACAMOLE_USER', 'guacadmin')
 GUAC_PASS = os.environ.get('GUACAMOLE_PASSWORD', 'guacadmin')
 PROXMOX_NODE = os.environ.get('PROXMOX_NODE', 'SRVDEPLOY')
+
+
+async def run_powershell_on_vm(prox, vmid, command, timeout=15):
+    """Execute a PowerShell command on a VM via QEMU Guest Agent and return output."""
+    import time
+    
+    # Execute command
+    result = prox.nodes(PROXMOX_NODE).qemu(vmid).agent("exec").post(
+        command="powershell.exe",
+        **{"input-data": command}
+    )
+    pid = result.get("pid")
+    if not pid:
+        return "Erreur: pas de PID"
+    
+    # Wait for result
+    for _ in range(timeout):
+        await asyncio.sleep(1)
+        try:
+            status = prox.nodes(PROXMOX_NODE).qemu(vmid).agent("exec-status").get(pid=pid)
+            if status.get("exited"):
+                out = status.get("out-data", "")
+                err = status.get("err-data", "")
+                return out.strip() if out else err.strip()
+        except Exception:
+            pass
+    
+    return "Timeout"
 
 def guac_auth():
     r = requests.post(f"{GUAC_URL}/guacamole/api/tokens", data={"username": GUAC_USER, "password": GUAC_PASS}, verify=False)
