@@ -4,7 +4,7 @@ import axios from 'axios';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { BookOpen, Clock, Server, Network, Shield, Cpu, Database, Terminal, PlusCircle, ShieldCheck, Cloud, Activity, LayoutDashboard, ClipboardList, ScanEye, Cog, GraduationCap } from 'lucide-react';
+import { BookOpen, Clock, Server, Network, Shield, Cpu, Database, Terminal, PlusCircle, ShieldCheck, Cloud, Activity, LayoutDashboard, ClipboardList, ScanEye, Cog, GraduationCap, Monitor } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
@@ -98,13 +98,14 @@ export default function ExercisesPage() {
           const isCompleted = completedIds.has(ex.id);
           return (
             <Card key={ex.id} className="group relative overflow-hidden bg-zinc-900 border border-zinc-800 hover:border-cyan-500/50 transition-all duration-300 cursor-pointer animate-fade-in-up"
-              style={{ animationDelay: `${i * 0.05}s` }} onClick={() => navigate(`/exercises/${ex.id}`)} data-testid={`exercise-card-${ex.id}`}>
+              style={{ animationDelay: `${i * 0.05}s` }} onClick={() => navigate(ex.exercise_type === 'lab' ? `/labs/${ex.id}` : `/exercises/${ex.id}`)} data-testid={`exercise-card-${ex.id}`}>
               <CardContent className="p-5">
                 <div className="flex items-start justify-between mb-3">
                   <div className="w-9 h-9 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center">
-                    <Icon className="w-4 h-4 text-cyan-400" />
+                    {ex.exercise_type === 'lab' ? <Monitor className="w-4 h-4 text-orange-400" /> : <Icon className="w-4 h-4 text-cyan-400" />}
                   </div>
                   <div className="flex gap-1">
+                    {ex.exercise_type === 'lab' && <Badge className="bg-orange-500/20 text-orange-400 border-orange-500/30 text-[10px]">Lab VM</Badge>}
                     {isCompleted && <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[10px]">Complete</Badge>}
                     {ex.shared && <Badge className="bg-violet-500/20 text-violet-400 border-violet-500/30 text-[10px]">Partage</Badge>}
                   </div>

@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { PlusCircle, Trash2, GripVertical, Save, GraduationCap, Shield } from 'lucide-react';
+import { PlusCircle, Trash2, GripVertical, Save, GraduationCap, Shield, Monitor, BookOpen } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
@@ -22,6 +22,10 @@ export default function ExerciseCreate() {
   const [timeLimit, setTimeLimit] = useState(0);
   const [questions, setQuestions] = useState([]);
   const [saving, setSaving] = useState(false);
+  const [exerciseType, setExerciseType] = useState('standard');
+  const [labInstructions, setLabInstructions] = useState('');
+  const [labUsername, setLabUsername] = useState('Administrator');
+  const [labPassword, setLabPassword] = useState('Lab2026!');
 
   useEffect(() => {
     const headers = getAuthHeaders();
@@ -63,6 +67,10 @@ export default function ExerciseCreate() {
       await axios.post(`${API}/exercises`, {
         title, description, category, formation, shared,
         time_limit: parseInt(timeLimit) || 0,
+        exercise_type: exerciseType,
+        lab_instructions: exerciseType === 'lab' ? labInstructions : undefined,
+        lab_username: exerciseType === 'lab' ? labUsername : undefined,
+        lab_password: exerciseType === 'lab' ? labPassword : undefined,
         questions: questions.map(q => ({ ...q, points: parseInt(q.points) || 1 })),
       }, { headers: getAuthHeaders() });
       toast.success('Exercice cree avec succes');
@@ -134,6 +142,44 @@ export default function ExerciseCreate() {
               </label>
             </div>
           </div>
+
+          {/* Exercise Type */}
+          <div>
+            <label className="text-xs font-mono text-zinc-500 uppercase tracking-wider mb-2 block">Type d'exercice</label>
+            <div className="flex gap-3">
+              <button type="button" onClick={() => setExerciseType('standard')} data-testid="type-standard-btn"
+                className={`flex-1 p-3 rounded-lg border text-sm transition-all ${exerciseType === 'standard' ? 'bg-cyan-500/10 border-cyan-500/50 text-cyan-300' : 'bg-zinc-800/30 border-zinc-800 text-zinc-400 hover:border-zinc-700'}`}>
+                <BookOpen className="w-4 h-4 mx-auto mb-1" /> Standard (QCM/Ouvert)
+              </button>
+              <button type="button" onClick={() => setExerciseType('lab')} data-testid="type-lab-btn"
+                className={`flex-1 p-3 rounded-lg border text-sm transition-all ${exerciseType === 'lab' ? 'bg-orange-500/10 border-orange-500/50 text-orange-300' : 'bg-zinc-800/30 border-zinc-800 text-zinc-400 hover:border-zinc-700'}`}>
+                <Monitor className="w-4 h-4 mx-auto mb-1" /> Lab Pratique (VM)
+              </button>
+            </div>
+          </div>
+
+          {/* Lab-specific fields */}
+          {exerciseType === 'lab' && (
+            <div className="space-y-4 p-4 border border-orange-500/20 rounded-lg bg-orange-500/5">
+              <p className="text-xs font-mono text-orange-400 uppercase tracking-wider">Configuration Lab VM</p>
+              <div>
+                <label className="text-xs font-mono text-zinc-500 uppercase tracking-wider mb-2 block">Consignes du lab</label>
+                <textarea data-testid="lab-instructions" value={labInstructions} onChange={(e) => setLabInstructions(e.target.value)}
+                  placeholder="Decrivez les etapes que l'etudiant doit realiser dans la VM..."
+                  className="w-full min-h-[120px] bg-zinc-950 border border-zinc-800 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-zinc-100 placeholder:text-zinc-600 rounded-md px-3 py-2 text-sm resize-none" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-mono text-zinc-500 uppercase tracking-wider mb-2 block">Utilisateur RDP</label>
+                  <Input data-testid="lab-username" value={labUsername} onChange={(e) => setLabUsername(e.target.value)} className="bg-zinc-950 border-zinc-800 focus:border-orange-500 text-zinc-100" />
+                </div>
+                <div>
+                  <label className="text-xs font-mono text-zinc-500 uppercase tracking-wider mb-2 block">Mot de passe RDP</label>
+                  <Input data-testid="lab-password" value={labPassword} onChange={(e) => setLabPassword(e.target.value)} className="bg-zinc-950 border-zinc-800 focus:border-orange-500 text-zinc-100" />
+                </div>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 

@@ -104,7 +104,12 @@ class ExerciseCreate(BaseModel):
     formation: str = "bts-sio-sisr"
     questions: List[ExerciseQuestion]
     time_limit: int = 0
-    shared: bool = False  # shared across formations
+    shared: bool = False
+    exercise_type: str = "standard"
+    lab_instructions: Optional[str] = None
+    lab_username: Optional[str] = None
+    lab_password: Optional[str] = None
+    proxmox_template_id: Optional[int] = None
 
 class SubmissionAnswer(BaseModel):
     question_id: str
@@ -253,6 +258,11 @@ async def create_exercise(data: ExerciseCreate, current_user: dict = Depends(aut
         "shared": data.shared,
         "questions": [q.model_dump() for q in data.questions],
         "time_limit": data.time_limit,
+        "exercise_type": data.exercise_type,
+        "lab_instructions": data.lab_instructions,
+        "lab_username": data.lab_username,
+        "lab_password": data.lab_password,
+        "proxmox_template_id": data.proxmox_template_id,
         "created_by": current_user["id"],
         "created_by_name": current_user["full_name"],
         "created_at": datetime.now(timezone.utc).isoformat()
@@ -299,6 +309,11 @@ async def update_exercise(exercise_id: str, data: ExerciseCreate, current_user: 
         "shared": data.shared,
         "questions": [q.model_dump() for q in data.questions],
         "time_limit": data.time_limit,
+        "exercise_type": data.exercise_type,
+        "lab_instructions": data.lab_instructions,
+        "lab_username": data.lab_username,
+        "lab_password": data.lab_password,
+        "proxmox_template_id": data.proxmox_template_id,
     }
     result = await db.exercises.update_one({"id": exercise_id}, {"$set": update_doc})
     if result.matched_count == 0:
@@ -713,6 +728,285 @@ async def seed_data():
         "bts_sisr": {"username": "etudiant1/etudiant2", "password": "etudiant123"},
         "bachelor_ais": {"username": "ais_student1/ais_student2", "password": "etudiant123"},
     }}
+
+
+# ─── Proxmox + Guacamole Lab Integration ───
+
+import requests
+from proxmoxer import ProxmoxAPI
+
+def get_proxmox():
+    host = os.environ.get('PROXMOX_HOST')
+    port = int(os.environ.get('PROXMOX_PORT', 8006))
+    user = os.environ.get('PROXMOX_USER')
+    token_name = os.environ.get('PROXMOX_TOKEN_NAME')
+    token_value = os.environ.get('PROXMOX_TOKEN_SECRET')
+    if not all([host, user, token_name, token_value]):
+        return None
+    return ProxmoxAPI(host, port=port, user=user, token_name=token_name, token_value=token_value, verify_ssl=False)
+
+GUAC_URL = os.environ.get('GUACAMOLE_URL', '')
+GUAC_USER = os.environ.get('GUACAMOLE_USER', 'guacadmin')
+GUAC_PASS = os.environ.get('GUACAMOLE_PASSWORD', 'guacadmin')
+PROXMOX_NODE = os.environ.get('PROXMOX_NODE', 'SRVDEPLOY')
+
+def guac_auth():
+    r = requests.post(f"{GUAC_URL}/guacamole/api/tokens", data={"username": GUAC_USER, "password": GUAC_PASS}, verify=False)
+    r.raise_for_status()
+    return r.json()["authToken"]
+
+def guac_create_connection(token, name, hostname, protocol="rdp", port="3389", username="Administrator", password="Lab2026!"):
+    payload = {
+        "parentIdentifier": "ROOT",
+        "name": name,
+        "protocol": protocol,
+        "parameters": {
+            "hostname": hostname,
+            "port": port,
+            "username": username,
+            "password": password,
+            "security": "nla",
+            "ignore-cert": "true",
+            "color-depth": "32",
+            "resize-method": "display-update",
+        },
+        "attributes": {"max-connections": "1", "max-connections-per-user": "1"}
+    }
+    r = requests.post(
+        f"{GUAC_URL}/guacamole/api/session/data/mysql/connections?token={token}",
+        json=payload, verify=False
+    )
+    if r.status_code == 200:
+        return r.json()
+    # Try postgresql datasource
+    r = requests.post(
+        f"{GUAC_URL}/guacamole/api/session/data/postgresql/connections?token={token}",
+        json=payload, verify=False
+    )
+    if r.status_code == 200:
+        return r.json()
+    # Try default datasource
+    r = requests.post(
+        f"{GUAC_URL}/guacamole/api/session/data/default/connections?token={token}",
+        json=payload, verify=False
+    )
+    r.raise_for_status()
+    return r.json()
+
+def guac_delete_connection(token, conn_id):
+    for ds in ["mysql", "postgresql", "default"]:
+        r = requests.delete(f"{GUAC_URL}/guacamole/api/session/data/{ds}/connections/{conn_id}?token={token}", verify=False)
+        if r.status_code == 204 or r.status_code == 200:
+            return True
+    return False
+
+import base64
+
+class LabStart(BaseModel):
+    exercise_id: str
+
+@api_router.post("/labs/start")
+async def start_lab(data: LabStart, current_user: dict = Depends(auth_dependency)):
+    if current_user["role"] != "etudiant":
+        raise HTTPException(status_code=403, detail="Etudiants uniquement")
+    
+    exercise = await db.exercises.find_one({"id": data.exercise_id}, {"_id": 0})
+    if not exercise or exercise.get("exercise_type") != "lab":
+        raise HTTPException(status_code=400, detail="Cet exercice n'est pas un lab")
+    
+    # Check if lab already running
+    existing = await db.labs.find_one({"student_id": current_user["id"], "exercise_id": data.exercise_id, "status": "running"}, {"_id": 0})
+    if existing:
+        return existing
+    
+    prox = get_proxmox()
+    if not prox:
+        raise HTTPException(status_code=500, detail="Proxmox non configure")
+    
+    template_id = exercise.get("proxmox_template_id", int(os.environ.get('PROXMOX_TEMPLATE_WINSERVER', 9002)))
+    
+    # Find next available VMID
+    try:
+        cluster_resources = prox.cluster.resources.get(type="vm")
+        used_ids = {int(r['vmid']) for r in cluster_resources}
+        new_vmid = 20001
+        while new_vmid in used_ids:
+            new_vmid += 1
+    except Exception:
+        import random
+        new_vmid = 20000 + random.randint(1, 999)
+    
+    lab_name = f"lab-{current_user['username']}-{new_vmid}"
+    
+    try:
+        # Clone template
+        prox.nodes(PROXMOX_NODE).qemu(template_id).clone.post(
+            newid=new_vmid,
+            name=lab_name,
+            full=1
+        )
+        
+        # Wait for clone to finish
+        import asyncio
+        for _ in range(30):
+            await asyncio.sleep(2)
+            try:
+                vm_status = prox.nodes(PROXMOX_NODE).qemu(new_vmid).status.current.get()
+                if vm_status.get("lock") is None:
+                    break
+            except Exception:
+                pass
+        
+        # Start VM
+        prox.nodes(PROXMOX_NODE).qemu(new_vmid).status.start.post()
+        
+        # Wait for VM to get IP
+        vm_ip = None
+        for _ in range(30):
+            await asyncio.sleep(3)
+            try:
+                ifaces = prox.nodes(PROXMOX_NODE).qemu(new_vmid).agent("network-get-interfaces").get()
+                for iface in ifaces.get("result", []):
+                    for addr in iface.get("ip-addresses", []):
+                        ip = addr.get("ip-address", "")
+                        if ip and not ip.startswith("127.") and not ip.startswith("fe80") and ":" not in ip:
+                            vm_ip = ip
+                            break
+                    if vm_ip:
+                        break
+            except Exception:
+                pass
+            if vm_ip:
+                break
+        
+        if not vm_ip:
+            vm_ip = "en-attente"
+        
+        # Create Guacamole connection
+        guac_conn_id = None
+        guac_url = None
+        if vm_ip != "en-attente":
+            try:
+                guac_token = guac_auth()
+                rdp_user = exercise.get("lab_username", "Administrator")
+                rdp_pass = exercise.get("lab_password", "Lab2026!")
+                conn = guac_create_connection(guac_token, lab_name, vm_ip, username=rdp_user, password=rdp_pass)
+                guac_conn_id = str(conn.get("identifier", ""))
+                # Build client URL
+                conn_str = f"{guac_conn_id}\0c\0mysql"
+                encoded = base64.b64encode(conn_str.encode()).decode()
+                guac_url = f"{GUAC_URL}/guacamole/#/client/{encoded}"
+            except Exception as e:
+                logger.error(f"Guacamole connection failed: {e}")
+                guac_url = f"{GUAC_URL}/guacamole/"
+        
+        lab_doc = {
+            "id": str(uuid.uuid4()),
+            "exercise_id": data.exercise_id,
+            "student_id": current_user["id"],
+            "student_name": current_user["full_name"],
+            "vmid": new_vmid,
+            "vm_name": lab_name,
+            "vm_ip": vm_ip,
+            "guac_connection_id": guac_conn_id,
+            "guac_url": guac_url,
+            "status": "running",
+            "started_at": datetime.now(timezone.utc).isoformat(),
+            "stopped_at": None,
+        }
+        await db.labs.insert_one(lab_doc)
+        return {k: v for k, v in lab_doc.items() if k != "_id"}
+    
+    except Exception as e:
+        logger.error(f"Lab provisioning failed: {e}")
+        # Cleanup on failure
+        try:
+            prox.nodes(PROXMOX_NODE).qemu(new_vmid).delete()
+        except Exception:
+            pass
+        raise HTTPException(status_code=500, detail=f"Erreur de provisionnement: {str(e)}")
+
+@api_router.get("/labs/status/{exercise_id}")
+async def get_lab_status(exercise_id: str, current_user: dict = Depends(auth_dependency)):
+    query = {"exercise_id": exercise_id, "status": "running"}
+    if current_user["role"] == "etudiant":
+        query["student_id"] = current_user["id"]
+    lab = await db.labs.find_one(query, {"_id": 0})
+    if not lab:
+        return {"status": "not_started"}
+    
+    # Refresh IP if needed
+    if lab.get("vm_ip") == "en-attente":
+        try:
+            prox = get_proxmox()
+            ifaces = prox.nodes(PROXMOX_NODE).qemu(lab["vmid"]).agent("network-get-interfaces").get()
+            for iface in ifaces.get("result", []):
+                for addr in iface.get("ip-addresses", []):
+                    ip = addr.get("ip-address", "")
+                    if ip and not ip.startswith("127.") and not ip.startswith("fe80") and ":" not in ip:
+                        lab["vm_ip"] = ip
+                        # Create guac connection now
+                        try:
+                            exercise = await db.exercises.find_one({"id": exercise_id}, {"_id": 0})
+                            guac_token = guac_auth()
+                            rdp_user = exercise.get("lab_username", "Administrator") if exercise else "Administrator"
+                            rdp_pass = exercise.get("lab_password", "Lab2026!") if exercise else "Lab2026!"
+                            conn = guac_create_connection(guac_token, lab["vm_name"], ip, username=rdp_user, password=rdp_pass)
+                            guac_conn_id = str(conn.get("identifier", ""))
+                            conn_str = f"{guac_conn_id}\0c\0mysql"
+                            encoded = base64.b64encode(conn_str.encode()).decode()
+                            lab["guac_url"] = f"{GUAC_URL}/guacamole/#/client/{encoded}"
+                            lab["guac_connection_id"] = guac_conn_id
+                        except Exception:
+                            lab["guac_url"] = f"{GUAC_URL}/guacamole/"
+                        await db.labs.update_one({"id": lab["id"]}, {"$set": {"vm_ip": ip, "guac_url": lab.get("guac_url"), "guac_connection_id": lab.get("guac_connection_id")}})
+                        break
+        except Exception:
+            pass
+    return lab
+
+@api_router.post("/labs/stop/{exercise_id}")
+async def stop_lab(exercise_id: str, current_user: dict = Depends(auth_dependency)):
+    query = {"exercise_id": exercise_id, "status": "running"}
+    if current_user["role"] == "etudiant":
+        query["student_id"] = current_user["id"]
+    lab = await db.labs.find_one(query, {"_id": 0})
+    if not lab:
+        raise HTTPException(status_code=404, detail="Aucun lab en cours")
+    
+    try:
+        prox = get_proxmox()
+        # Stop and destroy VM
+        try:
+            prox.nodes(PROXMOX_NODE).qemu(lab["vmid"]).status.stop.post()
+        except Exception:
+            pass
+        import asyncio
+        await asyncio.sleep(5)
+        try:
+            prox.nodes(PROXMOX_NODE).qemu(lab["vmid"]).delete()
+        except Exception:
+            pass
+        # Delete Guacamole connection
+        if lab.get("guac_connection_id"):
+            try:
+                guac_token = guac_auth()
+                guac_delete_connection(guac_token, lab["guac_connection_id"])
+            except Exception:
+                pass
+    except Exception as e:
+        logger.error(f"Lab cleanup error: {e}")
+    
+    await db.labs.update_one({"id": lab["id"]}, {"$set": {"status": "stopped", "stopped_at": datetime.now(timezone.utc).isoformat()}})
+    return {"message": "Lab arrete et VM supprimee"}
+
+@api_router.get("/labs/active")
+async def get_active_labs(current_user: dict = Depends(auth_dependency)):
+    if current_user["role"] not in ["admin", "formateur"]:
+        raise HTTPException(status_code=403, detail="Acces refuse")
+    labs = await db.labs.find({"status": "running"}, {"_id": 0}).to_list(100)
+    return labs
+
 
 # Include router and middleware
 app.include_router(api_router)
