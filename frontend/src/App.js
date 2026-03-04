@@ -15,6 +15,7 @@ import TrackingPage from '@/pages/TrackingPage';
 import ResultsPage from '@/pages/ResultsPage';
 import SubmissionsPage from '@/pages/SubmissionsPage';
 import LabPage from '@/pages/LabPage';
+import LabsListPage from '@/pages/LabsListPage';
 import axios from 'axios';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -65,6 +66,7 @@ function App() {
           <Route path="/results" element={<ProtectedRoute><ResultsPage /></ProtectedRoute>} />
           <Route path="/results/:id" element={<ProtectedRoute><ResultsPage /></ProtectedRoute>} />
           <Route path="/submissions" element={<ProtectedRoute roles={['admin', 'formateur']}><SubmissionsPage /></ProtectedRoute>} />
+          <Route path="/labs" element={<ProtectedRoute><LabsListPage /></ProtectedRoute>} />
           <Route path="/labs/:exerciseId" element={<ProtectedRoute><LabPage /></ProtectedRoute>} />
           <Route path="/stats" element={<ProtectedRoute roles={['admin']}><AdminDashboard /></ProtectedRoute>} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
