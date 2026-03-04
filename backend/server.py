@@ -992,6 +992,7 @@ def guac_create_connection(token, name, hostname, protocol="rdp", port="3389", u
             "ignore-cert": "true",
             "resize-method": "display-update",
             "enable-wallpaper": "false",
+            "server-layout": "fr-fr-azerty",
         },
         "attributes": {"max-connections": "2", "max-connections-per-user": "2"}
     }
