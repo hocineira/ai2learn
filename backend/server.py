@@ -1103,40 +1103,68 @@ async def start_lab(data: LabStart, current_user: dict = Depends(auth_dependency
 
 async def _provision_lab_background(lab_id: str, vmid: int, lab_name: str, exercise: dict):
     """Background task: wait for clone, start VM, get IP, create Guacamole connection."""
-    import asyncio
     try:
         prox = get_proxmox()
+        node = PROXMOX_NODE
+        host = os.environ.get('PROXMOX_HOST')
+        port = os.environ.get('PROXMOX_PORT', 8006)
         
-        # Phase 1: Wait for clone to finish (check lock, max 3 min)
+        # Phase 1: Wait for clone to finish (check lock, max 4 min)
         logger.info(f"[Lab {lab_id}] Waiting for clone of VM {vmid}...")
         clone_done = False
-        for i in range(90):  # 90 * 2s = 3 min max
+        for i in range(120):  # 120 * 2s = 4 min max
             await asyncio.sleep(2)
             try:
-                vm_status = prox.nodes(PROXMOX_NODE).qemu(vmid).status.current.get()
+                vm_status = prox.nodes(node).qemu(vmid).status.current.get()
                 if vm_status.get("lock") is None:
                     clone_done = True
+                    logger.info(f"[Lab {lab_id}] Clone done after {i*2}s")
                     break
             except Exception:
                 pass
         
         if not clone_done:
             logger.error(f"[Lab {lab_id}] Clone timeout for VM {vmid}")
-            await db.labs.update_one({"id": lab_id}, {"$set": {"status": "error", "vm_ip": "Clone timeout"}})
+            await db.labs.update_one({"id": lab_id}, {"$set": {"status": "error", "vm_ip": "Clone timeout - reessayez"}})
             return
         
-        # Phase 2: Start VM
-        logger.info(f"[Lab {lab_id}] Clone done. Starting VM {vmid}...")
+        # Phase 2: Start VM (with retry if still transitioning)
+        logger.info(f"[Lab {lab_id}] Starting VM {vmid}...")
         await db.labs.update_one({"id": lab_id}, {"$set": {"status": "starting"}})
-        prox.nodes(PROXMOX_NODE).qemu(vmid).status.start.post()
         
-        # Phase 3: Wait for IP via QEMU Guest Agent (max 3 min)
+        started = False
+        for attempt in range(5):
+            try:
+                prox.nodes(node).qemu(vmid).status.start.post()
+                started = True
+                logger.info(f"[Lab {lab_id}] Start command sent (attempt {attempt+1})")
+                break
+            except Exception as e:
+                logger.warning(f"[Lab {lab_id}] Start attempt {attempt+1} failed: {e}")
+                await asyncio.sleep(5)
+        
+        if not started:
+            logger.error(f"[Lab {lab_id}] Could not start VM {vmid}")
+            await db.labs.update_one({"id": lab_id}, {"$set": {"status": "error", "vm_ip": "Impossible de demarrer la VM"}})
+            return
+        
+        # Wait for VM to actually be running
+        for i in range(15):
+            await asyncio.sleep(2)
+            try:
+                st = prox.nodes(node).qemu(vmid).status.current.get()
+                if st.get("status") == "running":
+                    break
+            except Exception:
+                pass
+        
+        # Phase 3: Try to get IP via QEMU Guest Agent (max 2 min)
         logger.info(f"[Lab {lab_id}] Waiting for IP on VM {vmid}...")
         vm_ip = None
-        for i in range(60):  # 60 * 3s = 3 min max
+        for i in range(40):  # 40 * 3s = 2 min max
             await asyncio.sleep(3)
             try:
-                ifaces = prox.nodes(PROXMOX_NODE).qemu(vmid).agent("network-get-interfaces").get()
+                ifaces = prox.nodes(node).qemu(vmid).agent("network-get-interfaces").get()
                 for iface in ifaces.get("result", []):
                     for addr in iface.get("ip-addresses", []):
                         ip = addr.get("ip-address", "")
@@ -1150,10 +1178,13 @@ async def _provision_lab_background(lab_id: str, vmid: int, lab_name: str, exerc
             if vm_ip:
                 break
         
-        # Phase 4: Create Guacamole connection
+        # Phase 4: Setup remote access
         guac_conn_id = None
         guac_url = None
+        
         if vm_ip:
+            # Guest agent works -> use Guacamole RDP
+            logger.info(f"[Lab {lab_id}] Got IP: {vm_ip}, setting up Guacamole RDP")
             try:
                 guac_token = guac_auth()
                 rdp_user = exercise.get("lab_username", "Administrator")
@@ -1164,18 +1195,23 @@ async def _provision_lab_background(lab_id: str, vmid: int, lab_name: str, exerc
                 encoded = base64.b64encode(conn_str.encode()).decode()
                 guac_url = f"{GUAC_URL}/guacamole/#/client/{encoded}"
             except Exception as e:
-                logger.error(f"[Lab {lab_id}] Guacamole connection failed: {e}")
-                guac_url = f"{GUAC_URL}/guacamole/"
+                logger.error(f"[Lab {lab_id}] Guacamole failed: {e}")
+        
+        if not guac_url:
+            # Fallback: Proxmox noVNC console
+            logger.info(f"[Lab {lab_id}] No IP/Guacamole, using Proxmox noVNC fallback")
+            guac_url = f"https://{host}:{port}/?console=kvm&novnc=1&vmid={vmid}&vmname={lab_name}&node={node}"
+            vm_ip = vm_ip or "no-agent"
         
         # Update lab status
         update = {
             "status": "running",
-            "vm_ip": vm_ip or "en-attente",
+            "vm_ip": vm_ip,
             "guac_connection_id": guac_conn_id,
             "guac_url": guac_url,
         }
         await db.labs.update_one({"id": lab_id}, {"$set": update})
-        logger.info(f"[Lab {lab_id}] VM {vmid} ready! IP: {vm_ip}")
+        logger.info(f"[Lab {lab_id}] VM {vmid} ready! IP: {vm_ip}, URL: {guac_url[:60]}...")
     
     except Exception as e:
         logger.error(f"[Lab {lab_id}] Background provisioning error: {e}")
@@ -1195,7 +1231,7 @@ async def get_lab_status(exercise_id: str, current_user: dict = Depends(auth_dep
         return {"status": "not_started"}
     
     # Refresh IP if needed
-    if lab.get("vm_ip") == "en-attente":
+    if lab.get("vm_ip") in ("en-attente", "no-agent", None):
         try:
             prox = get_proxmox()
             ifaces = prox.nodes(PROXMOX_NODE).qemu(lab["vmid"]).agent("network-get-interfaces").get()
@@ -1212,7 +1248,7 @@ async def get_lab_status(exercise_id: str, current_user: dict = Depends(auth_dep
                             rdp_pass = exercise.get("lab_password", "Lab2026!") if exercise else "Lab2026!"
                             conn = guac_create_connection(guac_token, lab["vm_name"], ip, username=rdp_user, password=rdp_pass)
                             guac_conn_id = str(conn.get("identifier", ""))
-                            conn_str = f"{guac_conn_id}\0c\0mysql"
+                            conn_str = f"{guac_conn_id}\0c\0postgresql"
                             encoded = base64.b64encode(conn_str.encode()).decode()
                             lab["guac_url"] = f"{GUAC_URL}/guacamole/#/client/{encoded}"
                             lab["guac_connection_id"] = guac_conn_id
@@ -1221,7 +1257,14 @@ async def get_lab_status(exercise_id: str, current_user: dict = Depends(auth_dep
                         await db.labs.update_one({"id": lab["id"]}, {"$set": {"vm_ip": ip, "guac_url": lab.get("guac_url"), "guac_connection_id": lab.get("guac_connection_id")}})
                         break
         except Exception:
-            pass
+            # Guest agent not available - provide noVNC fallback if no URL yet
+            if not lab.get("guac_url"):
+                host = os.environ.get('PROXMOX_HOST')
+                port = os.environ.get('PROXMOX_PORT', 8006)
+                fallback_url = f"https://{host}:{port}/?console=kvm&novnc=1&vmid={lab['vmid']}&vmname={lab['vm_name']}&node={PROXMOX_NODE}"
+                lab["guac_url"] = fallback_url
+                lab["vm_ip"] = "no-agent"
+                await db.labs.update_one({"id": lab["id"]}, {"$set": {"vm_ip": "no-agent", "guac_url": fallback_url}})
     return lab
 
 @api_router.post("/labs/stop/{exercise_id}")

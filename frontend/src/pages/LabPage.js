@@ -101,8 +101,10 @@ export default function LabPage() {
   const isStarting = lab?.status === 'starting';
   const isProvisioning = isCloning || isStarting;
   const isError = lab?.status === 'error';
-  const hasIP = isRunning && lab?.vm_ip && lab.vm_ip !== 'en-attente';
+  const hasIP = isRunning && lab?.vm_ip && lab.vm_ip !== 'en-attente' && lab.vm_ip !== 'no-agent';
+  const hasNoAgent = isRunning && lab?.vm_ip === 'no-agent';
   const hasGuacUrl = isRunning && lab?.guac_url;
+  const hasAccess = hasIP || hasNoAgent; // Can access via RDP or noVNC
 
   // Auto-poll when provisioning
   useEffect(() => {
@@ -243,7 +245,7 @@ export default function LabPage() {
           )}
 
           {/* Running but waiting for IP */}
-          {isRunning && !hasIP && (
+          {isRunning && !hasAccess && (
             <div className="text-center py-8" data-testid="lab-starting">
               <Loader2 className="w-12 h-12 text-cyan-400 mx-auto mb-4 animate-spin" />
               <h3 className="text-lg font-semibold text-zinc-200 mb-2" style={{ fontFamily: 'Space Grotesk' }}>
@@ -259,13 +261,16 @@ export default function LabPage() {
             </div>
           )}
 
-          {isRunning && hasIP && (
+          {isRunning && hasAccess && (
             <div data-testid="lab-running">
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse" />
                 <h3 className="text-lg font-semibold text-emerald-400" style={{ fontFamily: 'Space Grotesk' }}>
                   Lab en cours
                 </h3>
+                {hasNoAgent && (
+                  <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 text-[10px]">Console noVNC</Badge>
+                )}
               </div>
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
@@ -275,7 +280,7 @@ export default function LabPage() {
                 </div>
                 <div className="bg-zinc-800/50 rounded-lg p-3">
                   <p className="text-[10px] font-mono text-zinc-500 uppercase">IP</p>
-                  <p className="text-sm font-medium text-zinc-200">{lab.vm_ip}</p>
+                  <p className="text-sm font-medium text-zinc-200">{hasIP ? lab.vm_ip : 'Console directe'}</p>
                 </div>
                 <div className="bg-zinc-800/50 rounded-lg p-3">
                   <p className="text-[10px] font-mono text-zinc-500 uppercase">Nom</p>
@@ -289,6 +294,14 @@ export default function LabPage() {
                 </div>
               </div>
 
+              {hasNoAgent && (
+                <div className="mb-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-sm text-amber-400">
+                  <AlertCircle className="w-4 h-4 inline mr-2" />
+                  Le QEMU Guest Agent n'est pas installe sur cette VM. L'acces se fait via la console noVNC de Proxmox.
+                  Pour le RDP automatique, installez le <a href="https://pve.proxmox.com/wiki/Qemu-guest-agent" target="_blank" rel="noreferrer" className="underline">QEMU Guest Agent</a> sur le template.
+                </div>
+              )}
+
               <div className="flex flex-col sm:flex-row gap-3">
                 {hasGuacUrl && (
                   <Button
@@ -296,7 +309,7 @@ export default function LabPage() {
                     onClick={() => window.open(lab.guac_url, '_blank')}
                     className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white py-3 text-base"
                   >
-                    <ExternalLink className="w-5 h-5 mr-2" /> Acceder au Bureau (Guacamole)
+                    <ExternalLink className="w-5 h-5 mr-2" /> {hasNoAgent ? 'Acceder a la console (noVNC)' : 'Acceder au Bureau (Guacamole)'}
                   </Button>
                 )}
                 <Button
