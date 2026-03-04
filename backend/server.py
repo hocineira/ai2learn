@@ -1267,6 +1267,40 @@ async def get_lab_status(exercise_id: str, current_user: dict = Depends(auth_dep
                 await db.labs.update_one({"id": lab["id"]}, {"$set": {"vm_ip": "no-agent", "guac_url": fallback_url}})
     return lab
 
+
+@api_router.get("/labs/guac-url/{exercise_id}")
+async def get_guac_url(exercise_id: str, current_user: dict = Depends(auth_dependency)):
+    """Generate a fresh Guacamole URL with a valid auth token."""
+    query = {"exercise_id": exercise_id, "status": "running"}
+    if current_user["role"] == "etudiant":
+        query["student_id"] = current_user["id"]
+    lab = await db.labs.find_one(query, {"_id": 0})
+    if not lab:
+        raise HTTPException(status_code=404, detail="Aucun lab en cours")
+    
+    if not lab.get("guac_connection_id"):
+        # Fallback noVNC
+        host = os.environ.get('PROXMOX_HOST')
+        port = os.environ.get('PROXMOX_PORT', 8006)
+        fallback = f"https://{host}:{port}/?console=kvm&novnc=1&vmid={lab['vmid']}&vmname={lab['vm_name']}&node={PROXMOX_NODE}"
+        return {"url": fallback, "fallback": True}
+    
+    try:
+        token = guac_auth()
+        conn_id = lab["guac_connection_id"]
+        conn_str = f"{conn_id}\0c\0postgresql"
+        encoded = base64.b64encode(conn_str.encode()).decode()
+        url = f"{GUAC_URL}/guacamole/#/client/{encoded}?token={token}"
+        return {"url": url}
+    except Exception as e:
+        logger.error(f"Guacamole URL generation failed: {e}")
+        host = os.environ.get('PROXMOX_HOST')
+        port = os.environ.get('PROXMOX_PORT', 8006)
+        fallback = f"https://{host}:{port}/?console=kvm&novnc=1&vmid={lab['vmid']}&vmname={lab['vm_name']}&node={PROXMOX_NODE}"
+        return {"url": fallback, "fallback": True}
+
+
+
 @api_router.post("/labs/stop/{exercise_id}")
 async def stop_lab(exercise_id: str, current_user: dict = Depends(auth_dependency)):
     query = {"exercise_id": exercise_id, "status": "running"}

@@ -96,6 +96,16 @@ export default function LabPage() {
     setStopping(false);
   };
 
+  const openGuacamole = async () => {
+    try {
+      const res = await axios.get(`${API}/labs/guac-url/${exerciseId}`, { headers: getAuthHeaders() });
+      window.open(res.data.url, '_blank');
+    } catch {
+      // Fallback: use stored URL
+      if (lab?.guac_url) window.open(lab.guac_url, '_blank');
+    }
+  };
+
   const isRunning = lab?.status === 'running';
   const isCloning = lab?.status === 'cloning';
   const isStarting = lab?.status === 'starting';
@@ -306,7 +316,7 @@ export default function LabPage() {
                 {hasGuacUrl && (
                   <Button
                     data-testid="access-lab-btn"
-                    onClick={() => window.open(lab.guac_url, '_blank')}
+                    onClick={openGuacamole}
                     className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white py-3 text-base"
                   >
                     <ExternalLink className="w-5 h-5 mr-2" /> {hasNoAgent ? 'Acceder a la console (noVNC)' : 'Acceder au Bureau (Guacamole)'}
