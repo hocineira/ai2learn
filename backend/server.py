@@ -650,6 +650,227 @@ async def get_students_tracking(formation: str = None, current_user: dict = Depe
         })
     return tracking
 
+# ─── Charts Data ───
+
+from collections import defaultdict
+import csv
+import io
+from fastapi.responses import StreamingResponse
+
+@api_router.get("/stats/charts")
+async def get_chart_data(formation: str = None, current_user: dict = Depends(auth_dependency)):
+    if current_user["role"] not in ["admin", "formateur"]:
+        raise HTTPException(status_code=403, detail="Acces refuse")
+    
+    sub_query = {}
+    if formation:
+        sub_query["formation"] = formation
+    
+    submissions = await db.submissions.find(sub_query, {"_id": 0}).sort("submitted_at", 1).to_list(5000)
+    
+    # 1. Submissions over time (by day)
+    submissions_by_day = defaultdict(int)
+    scores_by_day = defaultdict(list)
+    for s in submissions:
+        day = s.get("submitted_at", "")[:10]
+        if day:
+            submissions_by_day[day] += 1
+            if s.get("graded") and s.get("score") is not None:
+                pct = round((s["score"] / max(s["max_score"], 1)) * 100, 1)
+                scores_by_day[day].append(pct)
+    
+    timeline = []
+    for day in sorted(submissions_by_day.keys()):
+        avg = round(sum(scores_by_day.get(day, [0])) / max(len(scores_by_day.get(day, [1])), 1), 1) if scores_by_day.get(day) else None
+        timeline.append({"date": day, "count": submissions_by_day[day], "avg_score": avg})
+    
+    # 2. Score distribution (buckets: 0-4, 4-8, 8-12, 12-16, 16-20)
+    score_dist = [
+        {"range": "0-4", "count": 0},
+        {"range": "4-8", "count": 0},
+        {"range": "8-12", "count": 0},
+        {"range": "12-16", "count": 0},
+        {"range": "16-20", "count": 0},
+    ]
+    for s in submissions:
+        if s.get("graded") and s.get("score") is not None:
+            score_20 = s.get("score_20") or round((s["score"] / max(s["max_score"], 1)) * 20, 1)
+            if score_20 < 4: score_dist[0]["count"] += 1
+            elif score_20 < 8: score_dist[1]["count"] += 1
+            elif score_20 < 12: score_dist[2]["count"] += 1
+            elif score_20 < 16: score_dist[3]["count"] += 1
+            else: score_dist[4]["count"] += 1
+    
+    # 3. Performance by category
+    cat_perf = defaultdict(lambda: {"total": 0, "scores": []})
+    for s in submissions:
+        ex = await db.exercises.find_one({"id": s["exercise_id"]}, {"_id": 0, "category": 1})
+        if ex:
+            cat = ex.get("category", "autre")
+            cat_perf[cat]["total"] += 1
+            if s.get("graded") and s.get("score") is not None:
+                cat_perf[cat]["scores"].append(round((s["score"] / max(s["max_score"], 1)) * 100, 1))
+    
+    category_stats = []
+    for cat, data in cat_perf.items():
+        avg = round(sum(data["scores"]) / max(len(data["scores"]), 1), 1) if data["scores"] else 0
+        category_stats.append({"category": cat, "submissions": data["total"], "avg_score": avg})
+    
+    # 4. Top students
+    student_perf = defaultdict(lambda: {"name": "", "scores": [], "count": 0})
+    for s in submissions:
+        sid = s.get("student_id", "")
+        student_perf[sid]["name"] = s.get("student_name", "?")
+        student_perf[sid]["count"] += 1
+        if s.get("graded") and s.get("score") is not None:
+            student_perf[sid]["scores"].append(round((s["score"] / max(s["max_score"], 1)) * 100, 1))
+    
+    top_students = []
+    for sid, data in student_perf.items():
+        avg = round(sum(data["scores"]) / max(len(data["scores"]), 1), 1) if data["scores"] else 0
+        top_students.append({"id": sid, "name": data["name"], "avg_score": avg, "submissions": data["count"]})
+    top_students.sort(key=lambda x: x["avg_score"], reverse=True)
+    
+    return {
+        "timeline": timeline,
+        "score_distribution": score_dist,
+        "category_stats": category_stats,
+        "top_students": top_students[:10],
+    }
+
+
+@api_router.get("/stats/student-charts")
+async def get_student_chart_data(current_user: dict = Depends(auth_dependency)):
+    submissions = await db.submissions.find({"student_id": current_user["id"]}, {"_id": 0}).sort("submitted_at", 1).to_list(500)
+    
+    # Progress over time
+    progress = []
+    for s in submissions:
+        if s.get("graded") and s.get("score") is not None:
+            score_20 = s.get("score_20") or round((s["score"] / max(s["max_score"], 1)) * 20, 1)
+            progress.append({
+                "date": s.get("submitted_at", "")[:10],
+                "score": score_20,
+                "exercise": s.get("exercise_title", "?")
+            })
+    
+    # Performance by category (radar data)
+    cat_data = defaultdict(lambda: {"scores": [], "total": 0})
+    for s in submissions:
+        ex = await db.exercises.find_one({"id": s["exercise_id"]}, {"_id": 0, "category": 1})
+        if ex:
+            cat = ex.get("category", "autre")
+            cat_data[cat]["total"] += 1
+            if s.get("graded") and s.get("score") is not None:
+                cat_data[cat]["scores"].append(round((s["score"] / max(s["max_score"], 1)) * 100, 1))
+    
+    radar = []
+    for cat, data in cat_data.items():
+        avg = round(sum(data["scores"]) / max(len(data["scores"]), 1), 1) if data["scores"] else 0
+        radar.append({"category": cat, "score": avg, "count": data["total"]})
+    
+    return {"progress": progress, "radar": radar}
+
+
+# ─── Export CSV ───
+
+@api_router.get("/export/submissions-csv")
+async def export_submissions_csv(formation: str = None, current_user: dict = Depends(auth_dependency)):
+    if current_user["role"] not in ["admin", "formateur"]:
+        raise HTTPException(status_code=403, detail="Acces refuse")
+    
+    query = {}
+    if formation:
+        query["formation"] = formation
+    submissions = await db.submissions.find(query, {"_id": 0}).sort("submitted_at", -1).to_list(5000)
+    
+    output = io.StringIO()
+    writer = csv.writer(output, delimiter=';')
+    writer.writerow(["Etudiant", "Exercice", "Formation", "Score", "Score /20", "Max Points", "Corrige", "Date soumission", "Feedback IA"])
+    
+    for s in submissions:
+        score_20 = s.get("score_20") or (round((s.get("score", 0) / max(s.get("max_score", 1), 1)) * 20, 1) if s.get("graded") else "")
+        writer.writerow([
+            s.get("student_name", ""),
+            s.get("exercise_title", ""),
+            s.get("formation", ""),
+            s.get("score", "") if s.get("graded") else "",
+            score_20,
+            s.get("max_score", ""),
+            "Oui" if s.get("graded") else "Non",
+            s.get("submitted_at", "")[:19].replace("T", " "),
+            (s.get("ai_feedback", "") or "")[:200],
+        ])
+    
+    output.seek(0)
+    return StreamingResponse(
+        io.BytesIO(output.getvalue().encode('utf-8-sig')),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename=soumissions-ai2lean-{datetime.now().strftime('%Y%m%d')}.csv"}
+    )
+
+
+@api_router.get("/export/tracking-csv")
+async def export_tracking_csv(formation: str = None, current_user: dict = Depends(auth_dependency)):
+    if current_user["role"] not in ["admin", "formateur"]:
+        raise HTTPException(status_code=403, detail="Acces refuse")
+    
+    query = {"role": "etudiant"}
+    if formation:
+        query["formation"] = formation
+    students = await db.users.find(query, {"_id": 0, "password": 0}).to_list(1000)
+    
+    output = io.StringIO()
+    writer = csv.writer(output, delimiter=';')
+    writer.writerow(["Nom complet", "Username", "Formation", "Exercices completes", "Score moyen (%)", "Derniere activite"])
+    
+    for student in students:
+        subs = await db.submissions.find({"student_id": student["id"]}, {"_id": 0}).to_list(1000)
+        graded = [s for s in subs if s.get("graded") and s.get("score") is not None]
+        avg = round(sum((s["score"] / max(s["max_score"], 1)) * 100 for s in graded) / max(len(graded), 1), 1) if graded else 0
+        last = subs[0]["submitted_at"][:19].replace("T", " ") if subs else ""
+        writer.writerow([
+            student.get("full_name", ""),
+            student.get("username", ""),
+            student.get("formation", ""),
+            len(subs),
+            avg,
+            last,
+        ])
+    
+    output.seek(0)
+    return StreamingResponse(
+        io.BytesIO(output.getvalue().encode('utf-8-sig')),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename=suivi-etudiants-{datetime.now().strftime('%Y%m%d')}.csv"}
+    )
+
+
+@api_router.get("/export/result-csv/{submission_id}")
+async def export_single_result_csv(submission_id: str, current_user: dict = Depends(auth_dependency)):
+    sub = await db.submissions.find_one({"id": submission_id}, {"_id": 0})
+    if not sub:
+        raise HTTPException(status_code=404, detail="Soumission introuvable")
+    
+    output = io.StringIO()
+    writer = csv.writer(output, delimiter=';')
+    writer.writerow(["Exercice", "Etudiant", "Score", "Score /20", "Date"])
+    score_20 = sub.get("score_20") or (round((sub.get("score", 0) / max(sub.get("max_score", 1), 1)) * 20, 1) if sub.get("graded") else "")
+    writer.writerow([sub.get("exercise_title", ""), sub.get("student_name", ""), f"{sub.get('score', '')}/{sub.get('max_score', '')}", score_20, sub.get("submitted_at", "")[:19]])
+    writer.writerow([])
+    writer.writerow(["Question #", "Type", "Reponse", "Points", "Feedback IA"])
+    for i, a in enumerate(sub.get("answers", []), 1):
+        qtype = "QCM" if a.get("correct") is not None else "Ouverte"
+        writer.writerow([i, qtype, a.get("answer", ""), a.get("points_earned", ""), a.get("ai_feedback", "")])
+    
+    output.seek(0)
+    return StreamingResponse(
+        io.BytesIO(output.getvalue().encode('utf-8-sig')),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename=resultat-{submission_id[:8]}.csv"}
+    )
+
+
 # ─── Seed Data ───
 
 @api_router.post("/seed")

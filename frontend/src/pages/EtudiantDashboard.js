@@ -7,11 +7,32 @@ import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { BookOpen, BarChart3, TrendingUp, CheckCircle2, Clock, ArrowRight, GraduationCap, Shield } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import {
+  RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine
+} from 'recharts';
+
+const CustomTooltip = ({ active, payload, label }) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 shadow-xl">
+        <p className="text-xs text-zinc-400 mb-1">{label}</p>
+        {payload.map((p, i) => (
+          <p key={i} className="text-sm font-medium" style={{ color: p.color }}>
+            {p.name}: {typeof p.value === 'number' ? p.value.toFixed(1) : p.value}
+          </p>
+        ))}
+      </div>
+    );
+  }
+  return null;
+};
 
 export default function EtudiantDashboard() {
   const { getAuthHeaders, API, user } = useAuth();
   const navigate = useNavigate();
   const [stats, setStats] = useState(null);
+  const [charts, setCharts] = useState(null);
   const [exercises, setExercises] = useState([]);
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -25,12 +46,14 @@ export default function EtudiantDashboard() {
     const fetchAll = async () => {
       try {
         const headers = getAuthHeaders();
-        const [statsRes, exRes, subRes] = await Promise.all([
+        const [statsRes, chartsRes, exRes, subRes] = await Promise.all([
           axios.get(`${API}/stats/student`, { headers }),
+          axios.get(`${API}/stats/student-charts`, { headers }),
           axios.get(`${API}/exercises?formation=${formation}`, { headers }),
           axios.get(`${API}/submissions`, { headers }),
         ]);
         setStats(statsRes.data);
+        setCharts(chartsRes.data);
         setExercises(exRes.data);
         setSubmissions(subRes.data);
       } catch (err) { console.error(err); }
@@ -43,6 +66,9 @@ export default function EtudiantDashboard() {
 
   const completedIds = new Set(submissions.map(s => s.exercise_id));
   const availableExercises = exercises.filter(e => !completedIds.has(e.id));
+
+  const radarData = charts?.radar || [];
+  const progressData = charts?.progress || [];
 
   return (
     <div className="space-y-8" data-testid="etudiant-dashboard">
@@ -101,6 +127,55 @@ export default function EtudiantDashboard() {
                 <p className="text-2xl font-bold" style={{ fontFamily: 'Space Grotesk' }}>{availableExercises.length}</p>
               </div>
             </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Charts: Progress over time + Radar */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card className="bg-zinc-900/50 backdrop-blur-md border-zinc-800">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2" style={{ fontFamily: 'Space Grotesk' }}>
+              <TrendingUp className="w-4 h-4 text-cyan-400" /> Evolution des notes
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {progressData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={220}>
+                <LineChart data={progressData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
+                  <XAxis dataKey="date" tick={{ fill: '#71717a', fontSize: 10 }} tickFormatter={(v) => v.slice(5)} />
+                  <YAxis domain={[0, 20]} tick={{ fill: '#71717a', fontSize: 10 }} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <ReferenceLine y={10} stroke="#f59e0b" strokeDasharray="3 3" label={{ value: "Moyenne", fill: '#f59e0b', fontSize: 10, position: 'right' }} />
+                  <Line type="monotone" dataKey="score" name="Note /20" stroke="#06b6d4" strokeWidth={2} dot={{ fill: '#06b6d4', r: 4 }} activeDot={{ r: 6 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-zinc-500 text-sm text-center py-10">Completez des exercices pour voir votre progression</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="bg-zinc-900/50 backdrop-blur-md border-zinc-800">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2" style={{ fontFamily: 'Space Grotesk' }}>
+              <BarChart3 className="w-4 h-4 text-violet-400" /> Performance par categorie
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {radarData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={220}>
+                <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="70%">
+                  <PolarGrid stroke="#27272a" />
+                  <PolarAngleAxis dataKey="category" tick={{ fill: '#a1a1aa', fontSize: 9 }} />
+                  <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fill: '#52525b', fontSize: 8 }} />
+                  <Radar name="Score (%)" dataKey="score" stroke="#8b5cf6" fill="#8b5cf6" fillOpacity={0.3} strokeWidth={2} />
+                </RadarChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-zinc-500 text-sm text-center py-10">Pas encore de donnees par categorie</p>
+            )}
           </CardContent>
         </Card>
       </div>

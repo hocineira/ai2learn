@@ -1,10 +1,30 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import axios from 'axios';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Users, GraduationCap, Shield } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Users, GraduationCap, Shield, Download, TrendingUp } from 'lucide-react';
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell
+} from 'recharts';
+
+const CustomTooltip = ({ active, payload, label }) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 shadow-xl">
+        <p className="text-xs text-zinc-400 mb-1">{label}</p>
+        {payload.map((p, i) => (
+          <p key={i} className="text-sm font-medium" style={{ color: p.color }}>
+            {p.name}: {p.value}%
+          </p>
+        ))}
+      </div>
+    );
+  }
+  return null;
+};
 
 export default function TrackingPage() {
   const { getAuthHeaders, API, activeFormation } = useAuth();
@@ -23,18 +43,75 @@ export default function TrackingPage() {
     fetch();
   }, [API, getAuthHeaders, activeFormation]);
 
+  const handleExportCSV = async () => {
+    try {
+      const formParam = activeFormation ? `?formation=${activeFormation}` : '';
+      const res = await axios.get(`${API}/export/tracking-csv${formParam}`, {
+        headers: getAuthHeaders(),
+        responseType: 'blob'
+      });
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'suivi-etudiants.csv';
+      link.click();
+      window.URL.revokeObjectURL(url);
+    } catch (err) { console.error(err); }
+  };
+
   if (loading) return <div className="text-zinc-500 text-center py-20">Chargement...</div>;
 
   const formationLabel = activeFormation === 'bachelor-ais' ? 'Bachelor AIS' : 'BTS SIO SISR';
 
+  // Chart data: student scores
+  const chartData = tracking
+    .slice()
+    .sort((a, b) => b.avg_score - a.avg_score)
+    .map(s => ({
+      name: s.full_name?.split(' ')[0] || s.username,
+      score: s.avg_score,
+      exercises: s.exercises_completed,
+    }));
+
   return (
     <div className="space-y-6" data-testid="tracking-page">
-      <div>
-        <h1 className="text-3xl md:text-4xl font-bold tracking-tight" style={{ fontFamily: 'Space Grotesk' }}>
-          Suivi <span className="text-gradient">etudiants</span>
-        </h1>
-        <p className="text-zinc-500 mt-1">{formationLabel} - {tracking.length} etudiant{tracking.length !== 1 ? 's' : ''}</p>
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div>
+          <h1 className="text-3xl md:text-4xl font-bold tracking-tight" style={{ fontFamily: 'Space Grotesk' }}>
+            Suivi <span className="text-gradient">etudiants</span>
+          </h1>
+          <p className="text-zinc-500 mt-1">{formationLabel} - {tracking.length} etudiant{tracking.length !== 1 ? 's' : ''}</p>
+        </div>
+        <Button variant="outline" size="sm" className="bg-zinc-900 border-zinc-700 text-zinc-300 hover:bg-zinc-800 hover:text-cyan-400" onClick={handleExportCSV} data-testid="export-tracking-btn">
+          <Download className="w-4 h-4 mr-2" /> Exporter CSV
+        </Button>
       </div>
+
+      {/* Overview chart */}
+      {chartData.length > 0 && (
+        <Card className="bg-zinc-900/50 backdrop-blur-md border-zinc-800">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2" style={{ fontFamily: 'Space Grotesk' }}>
+              <TrendingUp className="w-4 h-4 text-cyan-400" /> Classement par score moyen
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={Math.max(180, chartData.length * 40)}>
+              <BarChart data={chartData} layout="vertical" margin={{ left: 10, right: 20 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
+                <XAxis type="number" domain={[0, 100]} tick={{ fill: '#71717a', fontSize: 10 }} />
+                <YAxis dataKey="name" type="category" width={80} tick={{ fill: '#a1a1aa', fontSize: 11 }} />
+                <Tooltip content={<CustomTooltip />} />
+                <Bar dataKey="score" name="Score moyen" radius={[0, 4, 4, 0]}>
+                  {chartData.map((entry, i) => (
+                    <Cell key={i} fill={entry.score >= 50 ? '#10b981' : entry.score > 0 ? '#f59e0b' : '#3f3f46'} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {tracking.map((student, i) => {

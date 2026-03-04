@@ -5,7 +5,9 @@ import axios from 'axios';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { BarChart3, ArrowLeft, CheckCircle2, XCircle, Clock, Cpu } from 'lucide-react';
+import { BarChart3, ArrowLeft, CheckCircle2, XCircle, Clock, Cpu, Download, FileText } from 'lucide-react';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 export default function ResultsPage() {
   const { id } = useParams();
@@ -34,15 +36,113 @@ export default function ResultsPage() {
     fetch();
   }, [id, API, getAuthHeaders]);
 
+  const handleExportCSV = async (submissionId) => {
+    try {
+      const res = await axios.get(`${API}/export/result-csv/${submissionId}`, {
+        headers: getAuthHeaders(),
+        responseType: 'blob'
+      });
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `resultat-${submissionId.slice(0, 8)}.csv`;
+      link.click();
+      window.URL.revokeObjectURL(url);
+    } catch (err) { console.error(err); }
+  };
+
+  const handleExportPDF = (sub) => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    
+    // Header
+    doc.setFillColor(9, 9, 11);
+    doc.rect(0, 0, pageWidth, 40, 'F');
+    doc.setTextColor(6, 182, 212);
+    doc.setFontSize(20);
+    doc.text('AI2Lean - NETBFRS Academy', 14, 18);
+    doc.setTextColor(161, 161, 170);
+    doc.setFontSize(10);
+    doc.text('Rapport de resultat', 14, 28);
+    doc.text(`Genere le ${new Date().toLocaleDateString('fr-FR')}`, 14, 34);
+    
+    // Student info
+    doc.setTextColor(39, 39, 42);
+    doc.setFontSize(14);
+    doc.text(sub.exercise_title || 'Exercice', 14, 52);
+    doc.setFontSize(10);
+    doc.setTextColor(113, 113, 122);
+    doc.text(`Etudiant: ${sub.student_name || user?.full_name || ''}`, 14, 60);
+    doc.text(`Soumis le: ${sub.submitted_at ? new Date(sub.submitted_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : ''}`, 14, 66);
+    
+    // Score
+    const score20 = sub.score_20 != null ? sub.score_20 : (sub.graded ? Math.round((sub.score / Math.max(sub.max_score, 1)) * 200) / 10 : '-');
+    doc.setFontSize(18);
+    doc.setTextColor(sub.graded && (sub.score / Math.max(sub.max_score, 1)) * 100 >= 50 ? [16, 185, 129] : [244, 63, 94]);
+    doc.text(`Score: ${sub.graded ? `${sub.score}/${sub.max_score} (${score20}/20)` : 'En attente de correction'}`, 14, 80);
+    
+    // Answers table
+    if (sub.answers && sub.answers.length > 0) {
+      const tableData = sub.answers.map((a, i) => [
+        `Q${i + 1}`,
+        a.correct !== null && a.correct !== undefined ? 'QCM' : 'Ouverte',
+        (a.answer || '').substring(0, 60) + ((a.answer || '').length > 60 ? '...' : ''),
+        `${a.points_earned || 0} pts`,
+        (a.ai_feedback || '').substring(0, 80) + ((a.ai_feedback || '').length > 80 ? '...' : ''),
+      ]);
+      
+      doc.autoTable({
+        startY: 90,
+        head: [['#', 'Type', 'Reponse', 'Points', 'Feedback IA']],
+        body: tableData,
+        theme: 'striped',
+        headStyles: { fillColor: [6, 182, 212], textColor: [255, 255, 255], fontSize: 9 },
+        bodyStyles: { fontSize: 8, textColor: [63, 63, 70] },
+        columnStyles: {
+          0: { cellWidth: 12 },
+          1: { cellWidth: 18 },
+          2: { cellWidth: 55 },
+          3: { cellWidth: 18 },
+          4: { cellWidth: 'auto' },
+        },
+        margin: { left: 14, right: 14 },
+      });
+    }
+    
+    // AI General feedback
+    if (sub.ai_feedback) {
+      const finalY = doc.lastAutoTable ? doc.lastAutoTable.finalY + 10 : 90;
+      doc.setFontSize(10);
+      doc.setTextColor(6, 182, 212);
+      doc.text('Feedback general IA:', 14, finalY);
+      doc.setTextColor(63, 63, 70);
+      doc.setFontSize(9);
+      const splitText = doc.splitTextToSize(sub.ai_feedback, pageWidth - 28);
+      doc.text(splitText, 14, finalY + 6);
+    }
+    
+    doc.save(`resultat-${sub.exercise_title?.replace(/[^a-zA-Z0-9]/g, '-') || 'exercice'}.pdf`);
+  };
+
   if (loading) return <div className="text-zinc-500 text-center py-20">Chargement...</div>;
 
   // Detail view
   if (detail) {
     return (
       <div className="space-y-6 max-w-3xl" data-testid="result-detail">
-        <Button variant="ghost" className="text-zinc-400 hover:text-cyan-400 -ml-3" onClick={() => navigate('/results')}>
-          <ArrowLeft className="w-4 h-4 mr-2" /> Retour
-        </Button>
+        <div className="flex items-center justify-between">
+          <Button variant="ghost" className="text-zinc-400 hover:text-cyan-400 -ml-3" onClick={() => navigate('/results')}>
+            <ArrowLeft className="w-4 h-4 mr-2" /> Retour
+          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" className="bg-zinc-900 border-zinc-700 text-zinc-300 hover:bg-zinc-800 hover:text-cyan-400" onClick={() => handleExportCSV(detail.id)} data-testid="export-result-csv">
+              <Download className="w-4 h-4 mr-1" /> CSV
+            </Button>
+            <Button variant="outline" size="sm" className="bg-zinc-900 border-zinc-700 text-zinc-300 hover:bg-zinc-800 hover:text-violet-400" onClick={() => handleExportPDF(detail)} data-testid="export-result-pdf">
+              <FileText className="w-4 h-4 mr-1" /> PDF
+            </Button>
+          </div>
+        </div>
 
         <div>
           <h1 className="text-2xl font-bold tracking-tight" style={{ fontFamily: 'Space Grotesk' }}>{detail.exercise_title}</h1>
@@ -172,21 +272,23 @@ export default function ResultsPage() {
                   </div>
                 </div>
               </div>
-              {sub.graded ? (
-                <div className="text-right">
-                  <p className="text-lg font-bold" style={{
-                    fontFamily: 'Space Grotesk',
-                    color: (sub.score / Math.max(sub.max_score, 1)) * 100 >= 50 ? '#10b981' : '#f43f5e'
-                  }}>
-                    {sub.score_20 != null ? sub.score_20 : Math.round((sub.score / Math.max(sub.max_score, 1)) * 200) / 10}/20
-                  </p>
-                  <p className="text-xs text-zinc-500">{sub.score}/{sub.max_score} pts</p>
-                </div>
-              ) : (
-                <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">
-                  <Clock className="w-3 h-3 mr-1" /> En attente
-                </Badge>
-              )}
+              <div className="flex items-center gap-3">
+                {sub.graded ? (
+                  <div className="text-right">
+                    <p className="text-lg font-bold" style={{
+                      fontFamily: 'Space Grotesk',
+                      color: (sub.score / Math.max(sub.max_score, 1)) * 100 >= 50 ? '#10b981' : '#f43f5e'
+                    }}>
+                      {sub.score_20 != null ? sub.score_20 : Math.round((sub.score / Math.max(sub.max_score, 1)) * 200) / 10}/20
+                    </p>
+                    <p className="text-xs text-zinc-500">{sub.score}/{sub.max_score} pts</p>
+                  </div>
+                ) : (
+                  <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">
+                    <Clock className="w-3 h-3 mr-1" /> En attente
+                  </Badge>
+                )}
+              </div>
             </CardContent>
           </Card>
         ))}

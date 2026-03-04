@@ -5,11 +5,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ClipboardList, Clock, CheckCircle2, Cpu } from 'lucide-react';
+import { ClipboardList, Clock, CheckCircle2, Cpu, Download } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function SubmissionsPage() {
-  const { getAuthHeaders, API } = useAuth();
+  const { getAuthHeaders, API, activeFormation } = useAuth();
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -38,15 +38,36 @@ export default function SubmissionsPage() {
     }
   };
 
+  const handleExportCSV = async () => {
+    try {
+      const formParam = activeFormation ? `?formation=${activeFormation}` : '';
+      const res = await axios.get(`${API}/export/submissions-csv${formParam}`, {
+        headers: getAuthHeaders(),
+        responseType: 'blob'
+      });
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'soumissions.csv';
+      link.click();
+      window.URL.revokeObjectURL(url);
+    } catch (err) { console.error(err); }
+  };
+
   if (loading) return <div className="text-zinc-500 text-center py-20">Chargement...</div>;
 
   return (
     <div className="space-y-6" data-testid="submissions-page">
-      <div>
-        <h1 className="text-3xl md:text-4xl font-bold tracking-tight" style={{ fontFamily: 'Space Grotesk' }}>
-          <span className="text-gradient">Soumissions</span>
-        </h1>
-        <p className="text-zinc-500 mt-1">{submissions.length} soumission{submissions.length !== 1 ? 's' : ''}</p>
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div>
+          <h1 className="text-3xl md:text-4xl font-bold tracking-tight" style={{ fontFamily: 'Space Grotesk' }}>
+            <span className="text-gradient">Soumissions</span>
+          </h1>
+          <p className="text-zinc-500 mt-1">{submissions.length} soumission{submissions.length !== 1 ? 's' : ''}</p>
+        </div>
+        <Button variant="outline" size="sm" className="bg-zinc-900 border-zinc-700 text-zinc-300 hover:bg-zinc-800 hover:text-cyan-400" onClick={handleExportCSV} data-testid="export-submissions-csv-btn">
+          <Download className="w-4 h-4 mr-2" /> Exporter CSV
+        </Button>
       </div>
 
       <Card className="bg-zinc-900/50 backdrop-blur-md border-zinc-800">
