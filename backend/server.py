@@ -349,6 +349,8 @@ async def create_submission(data: SubmissionCreate, current_user: dict = Depends
             graded_answers.append(answer_doc)
     
     submission_id = str(uuid.uuid4())
+    score_val = score if not has_open_questions else None
+    score_20_val = round((score / max(max_score, 1)) * 20, 1) if not has_open_questions else None
     submission_doc = {
         "id": submission_id,
         "exercise_id": data.exercise_id,
@@ -357,7 +359,8 @@ async def create_submission(data: SubmissionCreate, current_user: dict = Depends
         "student_id": current_user["id"],
         "student_name": current_user["full_name"],
         "answers": graded_answers,
-        "score": score if not has_open_questions else None,
+        "score": score_val,
+        "score_20": score_20_val,
         "max_score": max_score,
         "ai_feedback": None,
         "graded": not has_open_questions,
@@ -397,6 +400,10 @@ async def get_submission(submission_id: str, current_user: dict = Depends(auth_d
 
 # ─── AI Grading ───
 
+def _get_question_max_pts(exercise, question_id):
+    q = next((q for q in exercise["questions"] if q["id"] == question_id), None)
+    return q.get("points", 1) if q else 1
+
 async def grade_submission_with_ai(submission_id: str):
     from emergentintegrations.llm.chat import LlmChat, UserMessage
     
@@ -410,10 +417,13 @@ async def grade_submission_with_ai(submission_id: str):
     formation_name = next((f["full_name"] for f in FORMATIONS if f["id"] == exercise.get("formation")), "Formation IT")
     
     prompt_parts = []
+    open_question_ids = []
     for answer in submission["answers"]:
         question = next((q for q in exercise["questions"] if q["id"] == answer["question_id"]), None)
         if question and question["question_type"] == "open":
+            open_question_ids.append(answer["question_id"])
             prompt_parts.append(
+                f"Question ID: {answer['question_id']}\n"
                 f"Question ({question.get('points', 1)} pts): {question['question_text']}\n"
                 f"Reponse attendue: {question.get('correct_answer', 'Pas de reponse type')}\n"
                 f"Reponse etudiant: {answer['answer']}"
@@ -426,8 +436,9 @@ async def grade_submission_with_ai(submission_id: str):
         f"Tu es un correcteur pour la formation '{formation_name}' de l'academie NETBFRS. "
         f"Evalue les reponses suivantes de l'etudiant. "
         f"Pour chaque question ouverte, attribue un score sur les points disponibles. "
+        f"IMPORTANT: Utilise exactement les Question ID fournis dans ta reponse. "
         f"Reponds en JSON avec ce format exact: "
-        f'{{"scores": [{{"question_id": "...", "points_earned": X, "feedback": "..."}}], "total_score": X, "general_feedback": "..."}}\n\n'
+        f'{{"scores": [{{"question_id": "COPIE_LE_QUESTION_ID_ICI", "points_earned": X, "feedback": "..."}}], "total_score": X, "general_feedback": "..."}}\n\n'
         + "\n\n".join(prompt_parts)
     )
     
@@ -449,17 +460,49 @@ async def grade_submission_with_ai(submission_id: str):
         result = json.loads(response_text)
         
         qcm_score = sum(a.get("points_earned", 0) for a in submission["answers"] if a.get("correct") is not None)
-        ai_score = result.get("total_score", 0)
+        ai_score = 0
         
-        for ai_item in result.get("scores", []):
+        ai_scores = result.get("scores", [])
+        
+        # Try matching by question_id first
+        matched_ids = set()
+        for ai_item in ai_scores:
             for answer in submission["answers"]:
                 if answer["question_id"] == ai_item.get("question_id"):
-                    answer["points_earned"] = ai_item.get("points_earned", 0)
+                    pts = min(ai_item.get("points_earned", 0), _get_question_max_pts(exercise, answer["question_id"]))
+                    answer["points_earned"] = pts
                     answer["ai_feedback"] = ai_item.get("feedback", "")
+                    ai_score += pts
+                    matched_ids.add(answer["question_id"])
+        
+        # Fallback: if no IDs matched, assign scores to open questions in order
+        if not matched_ids and ai_scores:
+            idx = 0
+            for answer in submission["answers"]:
+                if answer["question_id"] in open_question_ids and idx < len(ai_scores):
+                    pts = min(ai_scores[idx].get("points_earned", 0), _get_question_max_pts(exercise, answer["question_id"]))
+                    answer["points_earned"] = pts
+                    answer["ai_feedback"] = ai_scores[idx].get("feedback", "")
+                    ai_score += pts
+                    idx += 1
+        
+        # If total_score from AI is provided and seems more reliable, use it
+        ai_total = result.get("total_score", ai_score)
+        if isinstance(ai_total, (int, float)) and ai_total > 0:
+            ai_score = min(ai_total, sum(_get_question_max_pts(exercise, qid) for qid in open_question_ids))
+        
+        total_score = qcm_score + ai_score
+        score_20 = round((total_score / max(submission["max_score"], 1)) * 20, 1)
         
         await db.submissions.update_one(
             {"id": submission_id},
-            {"$set": {"answers": submission["answers"], "score": qcm_score + ai_score, "ai_feedback": result.get("general_feedback", ""), "graded": True}}
+            {"$set": {
+                "answers": submission["answers"],
+                "score": total_score,
+                "score_20": score_20,
+                "ai_feedback": result.get("general_feedback", ""),
+                "graded": True
+            }}
         )
     except (json.JSONDecodeError, KeyError) as e:
         logger.error(f"Failed to parse AI response: {e}")

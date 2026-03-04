@@ -57,12 +57,21 @@ export default function ResultsPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-mono text-zinc-500 uppercase mb-1">Score total</p>
-                <p className="text-4xl font-bold" style={{
-                  fontFamily: 'Space Grotesk',
-                  color: detail.graded ? ((detail.score / Math.max(detail.max_score, 1)) * 100 >= 50 ? '#10b981' : '#f43f5e') : '#71717a'
-                }}>
-                  {detail.graded ? `${detail.score}/${detail.max_score}` : 'En attente'}
-                </p>
+                <div className="flex items-end gap-4">
+                  <p className="text-4xl font-bold" style={{
+                    fontFamily: 'Space Grotesk',
+                    color: detail.graded ? ((detail.score / Math.max(detail.max_score, 1)) * 100 >= 50 ? '#10b981' : '#f43f5e') : '#71717a'
+                  }}>
+                    {detail.graded ? `${detail.score}/${detail.max_score}` : 'En attente'}
+                  </p>
+                  {detail.graded && detail.score != null && (
+                    <div className="mb-1">
+                      <p className="text-2xl font-bold text-gradient" style={{ fontFamily: 'Space Grotesk' }}>
+                        {detail.score_20 != null ? detail.score_20 : Math.round((detail.score / Math.max(detail.max_score, 1)) * 200) / 10}/20
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
               <Badge className={detail.graded ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-amber-500/20 text-amber-400 border-amber-500/30'}>
                 {detail.graded ? 'Corrige' : 'En cours'}
@@ -87,24 +96,41 @@ export default function ResultsPage() {
 
         {/* Answers detail */}
         <div className="space-y-3">
-          {detail.answers?.map((answer, i) => (
-            <Card key={i} className="bg-zinc-900/50 backdrop-blur-md border-zinc-800">
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between mb-2">
-                  <span className="text-xs font-mono text-zinc-500">Question {i + 1}</span>
-                  <div className="flex items-center gap-2">
-                    {answer.correct === true && <CheckCircle2 className="w-4 h-4 text-emerald-400" />}
-                    {answer.correct === false && <XCircle className="w-4 h-4 text-red-400" />}
-                    <span className="text-xs text-zinc-400">{answer.points_earned || 0} pts</span>
+          {detail.answers?.map((answer, i) => {
+            const isQcm = answer.correct !== null && answer.correct !== undefined;
+            const isOpen = !isQcm;
+            const pts = answer.points_earned || 0;
+            return (
+              <Card key={i} className="bg-zinc-900/50 backdrop-blur-md border-zinc-800">
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-mono text-zinc-500">Question {i + 1}</span>
+                      <Badge className={isQcm ? 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30 text-[10px]' : 'bg-amber-500/15 text-amber-400 border-amber-500/30 text-[10px]'}>
+                        {isQcm ? 'QCM' : 'Ouverte'}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {answer.correct === true && <CheckCircle2 className="w-4 h-4 text-emerald-400" />}
+                      {answer.correct === false && <XCircle className="w-4 h-4 text-red-400" />}
+                      {isOpen && pts > 0 && <CheckCircle2 className="w-4 h-4 text-emerald-400" />}
+                      {isOpen && pts === 0 && detail.graded && <XCircle className="w-4 h-4 text-red-400" />}
+                      <span className={`text-sm font-bold ${pts > 0 ? 'text-emerald-400' : 'text-zinc-500'}`} style={{ fontFamily: 'Space Grotesk' }}>
+                        {pts} pts
+                      </span>
+                    </div>
                   </div>
-                </div>
-                <p className="text-sm text-zinc-300 mb-2">{answer.answer}</p>
-                {answer.ai_feedback && (
-                  <p className="text-xs text-cyan-400/80 mt-2 border-t border-zinc-800 pt-2">{answer.ai_feedback}</p>
-                )}
-              </CardContent>
-            </Card>
-          ))}
+                  <p className="text-sm text-zinc-300 mb-2">{answer.answer}</p>
+                  {answer.ai_feedback && (
+                    <div className="mt-2 border-t border-zinc-800 pt-2 flex gap-2">
+                      <Cpu className="w-3 h-3 text-cyan-400 mt-0.5 flex-shrink-0" />
+                      <p className="text-xs text-cyan-400/80">{answer.ai_feedback}</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       </div>
     );
@@ -152,9 +178,9 @@ export default function ResultsPage() {
                     fontFamily: 'Space Grotesk',
                     color: (sub.score / Math.max(sub.max_score, 1)) * 100 >= 50 ? '#10b981' : '#f43f5e'
                   }}>
-                    {sub.score}/{sub.max_score}
+                    {sub.score_20 != null ? sub.score_20 : Math.round((sub.score / Math.max(sub.max_score, 1)) * 200) / 10}/20
                   </p>
-                  <p className="text-xs text-zinc-500">{Math.round((sub.score / Math.max(sub.max_score, 1)) * 100)}%</p>
+                  <p className="text-xs text-zinc-500">{sub.score}/{sub.max_score} pts</p>
                 </div>
               ) : (
                 <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">

@@ -82,7 +82,7 @@ export default function SubmissionsPage() {
                       <span className="text-sm font-bold" style={{
                         color: (sub.score / Math.max(sub.max_score, 1)) * 100 >= 50 ? '#10b981' : '#f43f5e'
                       }}>
-                        {sub.score}/{sub.max_score}
+                        {sub.score_20 != null ? sub.score_20 : Math.round((sub.score / Math.max(sub.max_score, 1)) * 200) / 10}/20
                       </span>
                     ) : (
                       <span className="text-sm text-zinc-500">-</span>

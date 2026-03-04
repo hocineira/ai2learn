@@ -157,8 +157,9 @@ export default function EtudiantDashboard() {
                   {sub.graded ? (
                     <div className="text-right">
                       <p className="text-lg font-bold" style={{ fontFamily: 'Space Grotesk', color: (sub.score / Math.max(sub.max_score, 1)) * 100 >= 50 ? '#10b981' : '#f43f5e' }}>
-                        {sub.score}/{sub.max_score}
+                        {sub.score_20 != null ? sub.score_20 : Math.round((sub.score / Math.max(sub.max_score, 1)) * 200) / 10}/20
                       </p>
+                      <p className="text-xs text-zinc-500">{sub.score}/{sub.max_score} pts</p>
                     </div>
                   ) : <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">En attente</Badge>}
                 </div>

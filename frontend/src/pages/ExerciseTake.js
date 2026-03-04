@@ -105,14 +105,11 @@ export default function ExerciseTake() {
             <h2 className="text-2xl font-bold mb-2" style={{ fontFamily: 'Space Grotesk' }}>Exercice soumis !</h2>
             {result.graded ? (
               <>
-                <p className="text-5xl font-bold my-4" style={{
-                  fontFamily: 'Space Grotesk',
-                  color: (result.score / Math.max(result.max_score, 1)) * 100 >= 50 ? '#10b981' : '#f43f5e'
-                }}>
-                  {result.score}/{result.max_score}
+                <p className="text-5xl font-bold my-4 text-gradient" style={{ fontFamily: 'Space Grotesk' }}>
+                  {result.score_20 != null ? result.score_20 : Math.round((result.score / Math.max(result.max_score, 1)) * 200) / 10}/20
                 </p>
                 <p className="text-zinc-400">
-                  {Math.round((result.score / Math.max(result.max_score, 1)) * 100)}% de reussite
+                  {result.score}/{result.max_score} points ({Math.round((result.score / Math.max(result.max_score, 1)) * 100)}%)
                 </p>
                 {result.ai_feedback && (
                   <div className="mt-6 text-left bg-zinc-800/50 rounded-lg p-4 border border-zinc-700">
