@@ -534,14 +534,14 @@ sisr-io ssl domaine # Activer SSL
 
 ### P0 - Priorite haute
 - [x] Endpoints backend labs (Proxmox clone, Guacamole connexion, stop)
-- [ ] Frontend page Labs (LabPage.jsx) + route + Sidebar link
-- [ ] Creation d'exercices de type "lab" dans ExerciseCreate.js
-- [ ] Corriger le token Proxmox dans .env
+- [x] Frontend page Labs (LabPage.jsx) + route + Sidebar link
+- [x] Creation d'exercices de type "lab" dans ExerciseCreate.js
+- [x] Corriger le token Proxmox dans .env (ai2learn@pve + bon secret)
 
 ### P1 - Priorite moyenne
+- [x] Graphiques de progression (recharts sur Admin, Formateur, Etudiant dashboards)
+- [x] Export resultats CSV/PDF (boutons sur toutes les pages, PDF via jsPDF)
 - [ ] Validation automatique des labs (scripts PowerShell executes via Proxmox + notation IA)
-- [ ] Graphiques de progression (recharts est deja dans package.json)
-- [ ] Export resultats CSV/PDF
 
 ### P2 - Priorite basse
 - [ ] Templates VM additionnels (pfSense, Wazuh, Ansible)
