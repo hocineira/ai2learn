@@ -5,7 +5,7 @@ import axios from 'axios';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Monitor, Play, Square, ExternalLink, ArrowLeft, Loader2, AlertCircle, CheckCircle2, Clock } from 'lucide-react';
+import { Monitor, Play, Square, ExternalLink, ArrowLeft, Loader2, AlertCircle, CheckCircle2, Clock, Send, Cpu } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function LabPage() {
@@ -17,6 +17,9 @@ export default function LabPage() {
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
   const [stopping, setStopping] = useState(false);
+  const [answers, setAnswers] = useState({});
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(null);
   const pollRef = useRef(null);
 
   useEffect(() => {
@@ -38,6 +41,13 @@ export default function LabPage() {
       if (s === 'cloning' || s === 'starting' || (s === 'running' && labRes.data?.vm_ip === 'en-attente')) {
         startPolling();
       }
+
+      // Check if already submitted
+      try {
+        const subRes = await axios.get(`${API}/submissions`, { headers });
+        const existing = (subRes.data || []).find(sub => sub.exercise_id === exerciseId);
+        if (existing) setSubmitted(existing);
+      } catch {}
     } catch (err) {
       toast.error('Exercice non trouve');
       navigate('/labs');
@@ -94,6 +104,48 @@ export default function LabPage() {
       toast.error(err.response?.data?.detail || 'Erreur');
     }
     setStopping(false);
+  };
+
+  const handleAnswerChange = (questionId, value) => {
+    setAnswers(prev => ({ ...prev, [questionId]: value }));
+  };
+
+  const handleSubmitLab = async () => {
+    if (!exercise?.questions?.length) return;
+    
+    const unanswered = exercise.questions.filter(q => !answers[q.id]?.trim());
+    if (unanswered.length > 0) {
+      toast.error(`Repondez a toutes les questions (${unanswered.length} manquante${unanswered.length > 1 ? 's' : ''})`);
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const payload = {
+        exercise_id: exerciseId,
+        answers: exercise.questions.map(q => ({
+          question_id: q.id,
+          answer: answers[q.id] || '',
+        })),
+      };
+      const res = await axios.post(`${API}/submissions`, payload, { headers: getAuthHeaders() });
+      setSubmitted(res.data);
+      toast.success('Lab soumis ! Correction IA en cours...');
+      
+      // Trigger AI grading
+      try {
+        await axios.post(`${API}/grade/${res.data.id}`, {}, { headers: getAuthHeaders() });
+        // Refresh submission
+        const updatedSub = await axios.get(`${API}/submissions/${res.data.id}`, { headers: getAuthHeaders() });
+        setSubmitted(updatedSub.data);
+        toast.success('Correction terminee !');
+      } catch {
+        toast.info('Correction IA en attente - un formateur la validera.');
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Erreur lors de la soumission');
+    }
+    setSubmitting(false);
   };
 
   const openGuacamole = async () => {
@@ -341,30 +393,125 @@ export default function LabPage() {
         </CardContent>
       </Card>
 
-      {/* Questions associated (if any) */}
+      {/* Questions & Soumission */}
       {exercise.questions?.length > 0 && (
         <Card className="bg-zinc-900/50 backdrop-blur-md border-zinc-800">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2" style={{ fontFamily: 'Space Grotesk' }}>
-              <CheckCircle2 className="w-4 h-4 text-cyan-400" /> Questions associees ({exercise.questions.length})
+              <CheckCircle2 className="w-4 h-4 text-cyan-400" /> Validation du Lab ({exercise.questions.length} question{exercise.questions.length > 1 ? 's' : ''})
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-xs text-zinc-500 mb-3">
-              Ces questions seront evaluees une fois le lab termine. Vous pouvez aussi soumettre cet exercice depuis la page exercices.
-            </p>
-            <div className="space-y-2">
-              {exercise.questions.map((q, i) => (
-                <div key={q.id} className="flex items-center gap-3 p-2 bg-zinc-800/30 rounded-md">
-                  <span className="text-xs font-mono text-zinc-500 w-6">Q{i + 1}</span>
-                  <p className="text-sm text-zinc-300 flex-1 truncate">{q.question_text}</p>
-                  <Badge className={q.question_type === 'qcm' ? 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30 text-[10px]' : 'bg-amber-500/15 text-amber-400 border-amber-500/30 text-[10px]'}>
-                    {q.question_type === 'qcm' ? 'QCM' : 'Ouverte'}
-                  </Badge>
-                  <span className="text-xs text-zinc-500">{q.points}pts</span>
+            {submitted ? (
+              /* Already submitted - show results */
+              <div data-testid="lab-results">
+                <div className="flex items-center gap-3 mb-4 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                  <div>
+                    <p className="text-sm font-medium text-emerald-400">Lab soumis !</p>
+                    {submitted.graded && (
+                      <p className="text-lg font-bold text-zinc-200" style={{ fontFamily: 'Space Grotesk' }}>
+                        Score : {submitted.score_20 != null ? submitted.score_20 : Math.round((submitted.score / Math.max(submitted.max_score, 1)) * 200) / 10}/20
+                        <span className="text-sm text-zinc-500 ml-2">({submitted.score}/{submitted.max_score} pts)</span>
+                      </p>
+                    )}
+                    {!submitted.graded && <p className="text-xs text-zinc-500">En attente de correction...</p>}
+                  </div>
                 </div>
-              ))}
-            </div>
+                {submitted.ai_feedback && (
+                  <div className="mb-4 p-3 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Cpu className="w-4 h-4 text-cyan-400" />
+                      <span className="text-xs font-medium text-cyan-400">Feedback IA</span>
+                    </div>
+                    <p className="text-sm text-zinc-300">{submitted.ai_feedback}</p>
+                  </div>
+                )}
+                <div className="space-y-3">
+                  {submitted.answers?.map((a, i) => (
+                    <div key={i} className="p-3 rounded-lg bg-zinc-800/30 border border-zinc-800/50">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-mono text-zinc-500">Q{i + 1}</span>
+                        <span className={`text-sm font-bold ${(a.points_earned || 0) > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                          {a.points_earned || 0} pts
+                        </span>
+                      </div>
+                      <p className="text-sm text-zinc-300 mb-1">{exercise.questions[i]?.question_text}</p>
+                      <p className="text-xs text-zinc-400 italic">Votre reponse : {a.answer}</p>
+                      {a.ai_feedback && (
+                        <p className="text-xs text-cyan-400/80 mt-1"><Cpu className="w-3 h-3 inline mr-1" />{a.ai_feedback}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <Button className="mt-4 w-full bg-zinc-800 hover:bg-zinc-700 text-zinc-300" onClick={() => navigate(`/results/${submitted.id}`)}>
+                  Voir le detail du resultat
+                </Button>
+              </div>
+            ) : (
+              /* Answer form */
+              <div data-testid="lab-questions-form">
+                <p className="text-xs text-zinc-500 mb-4">
+                  Repondez aux questions ci-dessous pour valider votre lab. La correction IA sera lancee automatiquement.
+                </p>
+                <div className="space-y-4">
+                  {exercise.questions.map((q, i) => (
+                    <div key={q.id} className="p-4 rounded-lg bg-zinc-800/30 border border-zinc-800/50">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-xs font-mono text-zinc-500">Q{i + 1}</span>
+                        <Badge className={q.question_type === 'qcm' ? 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30 text-[10px]' : 'bg-amber-500/15 text-amber-400 border-amber-500/30 text-[10px]'}>
+                          {q.question_type === 'qcm' ? 'QCM' : 'Ouverte'}
+                        </Badge>
+                        <span className="text-xs text-zinc-500 ml-auto">{q.points} pts</span>
+                      </div>
+                      <p className="text-sm text-zinc-200 mb-3">{q.question_text}</p>
+
+                      {q.question_type === 'qcm' ? (
+                        <div className="space-y-2">
+                          {q.options?.map((opt, oi) => (
+                            <label key={oi} className={`flex items-center gap-3 p-2.5 rounded-lg border cursor-pointer transition-all ${answers[q.id] === opt ? 'bg-cyan-500/10 border-cyan-500/30 text-cyan-300' : 'bg-zinc-900/30 border-zinc-700 text-zinc-400 hover:border-zinc-600'}`}>
+                              <input
+                                type="radio"
+                                name={`q-${q.id}`}
+                                value={opt}
+                                checked={answers[q.id] === opt}
+                                onChange={() => handleAnswerChange(q.id, opt)}
+                                className="hidden"
+                              />
+                              <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${answers[q.id] === opt ? 'border-cyan-400' : 'border-zinc-600'}`}>
+                                {answers[q.id] === opt && <div className="w-2 h-2 rounded-full bg-cyan-400" />}
+                              </div>
+                              <span className="text-sm">{opt}</span>
+                            </label>
+                          ))}
+                        </div>
+                      ) : (
+                        <textarea
+                          className="w-full bg-zinc-900/50 border border-zinc-700 rounded-lg p-3 text-sm text-zinc-200 placeholder:text-zinc-600 focus:border-cyan-500/50 focus:outline-none resize-none"
+                          rows={3}
+                          placeholder="Votre reponse..."
+                          value={answers[q.id] || ''}
+                          onChange={(e) => handleAnswerChange(q.id, e.target.value)}
+                        />
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                <Button
+                  data-testid="submit-lab-btn"
+                  onClick={handleSubmitLab}
+                  disabled={submitting}
+                  className="mt-6 w-full bg-gradient-to-r from-cyan-600 to-violet-600 hover:from-cyan-500 hover:to-violet-500 text-white py-3 text-base"
+                >
+                  {submitting ? (
+                    <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> Soumission et correction IA...</>
+                  ) : (
+                    <><Send className="w-5 h-5 mr-2" /> Soumettre le Lab</>
+                  )}
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}

@@ -978,7 +978,7 @@ def guac_auth():
     r.raise_for_status()
     return r.json()["authToken"]
 
-def guac_create_connection(token, name, hostname, protocol="rdp", port="3389", username="Administrator", password="Lab2026!"):
+def guac_create_connection(token, name, hostname, protocol="rdp", port="3389", username="Administrateur", password="Lab2026!"):
     payload = {
         "parentIdentifier": "ROOT",
         "name": name,
