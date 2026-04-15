@@ -147,7 +147,10 @@ export default function ResultsPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight" style={{ fontFamily: 'Space Grotesk' }}>{detail.exercise_title}</h1>
           <p className="text-gray-500 dark:text-zinc-500 text-sm mt-1">
-            Soumis le {new Date(detail.submitted_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
+            {detail.student_name && user?.role !== 'etudiant' && (
+              <span className="text-cyan-600 dark:text-cyan-400 font-medium">{detail.student_name} — </span>
+            )}
+            Soumis le {new Date(detail.submitted_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
           </p>
         </div>
 
@@ -237,13 +240,17 @@ export default function ResultsPage() {
   }
 
   // List view
+  const isAdmin = user?.role === 'admin' || user?.role === 'formateur';
+
   return (
     <div className="space-y-6" data-testid="results-page">
       <div>
         <h1 className="text-3xl md:text-4xl font-bold tracking-tight" style={{ fontFamily: 'Space Grotesk' }}>
-          Mes <span className="text-gradient">resultats</span>
+          {isAdmin ? '' : 'Mes '}<span className="text-gradient">Resultats</span>
         </h1>
-        <p className="text-gray-500 dark:text-zinc-500 mt-1">{submissions.length} soumission{submissions.length !== 1 ? 's' : ''}</p>
+        <p className="text-gray-500 dark:text-zinc-500 mt-1">
+          {isAdmin ? `Toutes les soumissions - ${submissions.length} resultat${submissions.length !== 1 ? 's' : ''}` : `${submissions.length} soumission${submissions.length !== 1 ? 's' : ''}`}
+        </p>
       </div>
 
       <div className="space-y-3">
