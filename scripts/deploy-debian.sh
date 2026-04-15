@@ -257,8 +257,25 @@ ENVEOF
     python3 -m venv venv
     source venv/bin/activate
     pip install --upgrade pip -q
-    pip install -r requirements.txt -q
-    pip install emergentintegrations --extra-index-url https://d33sy5i8bnduwe.cloudfront.net/simple/ -q 2>/dev/null || true
+    
+    # Installer les dependances (exclure emergentintegrations qui a besoin d'un index prive)
+    grep -v "^emergentintegrations" "$APP_DIR/backend/requirements.txt" > /tmp/requirements_filtered.txt
+    pip install -r /tmp/requirements_filtered.txt -q || {
+        log_warn "Certaines dependances n'ont pas pu etre installees, tentative individuelle..."
+        pip install -r /tmp/requirements_filtered.txt --ignore-installed -q 2>/dev/null || true
+    }
+    rm -f /tmp/requirements_filtered.txt
+    
+    # Installer emergentintegrations depuis l'index prive (optionnel - pour la correction IA)
+    if [ -n "$LLM_KEY" ]; then
+        log_info "Installation de emergentintegrations (correction IA)..."
+        pip install emergentintegrations --extra-index-url https://d33sy5i8bnduwe.cloudfront.net/simple/ -q 2>/dev/null || {
+            log_warn "emergentintegrations non installe - la correction IA ne sera pas disponible"
+        }
+    else
+        log_info "Pas de cle LLM fournie, emergentintegrations ignore (correction IA desactivee)"
+    fi
+    
     deactivate
     
     log_success "Backend configure"

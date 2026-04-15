@@ -34,6 +34,16 @@ api_router = APIRouter(prefix="/api")
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+# Verifier si emergentintegrations est disponible
+HAS_EMERGENT_LLM = False
+if EMERGENT_LLM_KEY:
+    try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage
+        HAS_EMERGENT_LLM = True
+        logger.info("emergentintegrations disponible - correction IA activee")
+    except ImportError:
+        logger.warning("emergentintegrations non installe - correction IA desactivee")
+
 # ─── Formations & Categories ───
 
 FORMATIONS = [
@@ -452,6 +462,9 @@ def _get_question_max_pts(exercise, question_id):
     return q.get("points", 1) if q else 1
 
 async def grade_submission_with_ai(submission_id: str):
+    if not HAS_EMERGENT_LLM:
+        logger.warning("Correction IA impossible: emergentintegrations non installe")
+        return
     from emergentintegrations.llm.chat import LlmChat, UserMessage
     
     submission = await db.submissions.find_one({"id": submission_id}, {"_id": 0})
@@ -668,8 +681,8 @@ async def grade_submission_with_ai(submission_id: str):
 
 @api_router.post("/grade/{submission_id}")
 async def trigger_grading(submission_id: str, current_user: dict = Depends(auth_dependency)):
-    if not EMERGENT_LLM_KEY:
-        raise HTTPException(status_code=500, detail="Cle API IA non configuree")
+    if not EMERGENT_LLM_KEY or not HAS_EMERGENT_LLM:
+        raise HTTPException(status_code=500, detail="Correction IA non disponible (cle ou module manquant)")
     
     # Students can grade their own lab submissions
     submission = await db.submissions.find_one({"id": submission_id}, {"_id": 0})
