@@ -210,7 +210,7 @@ export default function ExerciseTake() {
                 value={answers[current.id] || ''}
                 onChange={(e) => setAnswers({ ...answers, [current.id]: e.target.value })}
                 placeholder="Redigez votre reponse ici..."
-                className="w-full min-h-[150px] bg-white dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 text-zinc-100 placeholder:text-gray-400 dark:text-zinc-600 rounded-md px-3 py-2 text-sm resize-none"
+                className="w-full min-h-[150px] bg-white dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 rounded-md px-3 py-2 text-sm resize-none"
               />
             )}
           </CardContent>

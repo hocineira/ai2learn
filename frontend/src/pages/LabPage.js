@@ -510,7 +510,7 @@ export default function LabPage() {
                         </div>
                       ) : (
                         <textarea
-                          className="w-full bg-white dark:bg-zinc-900/50 border border-gray-300 dark:border-zinc-700 rounded-lg p-3 text-sm text-gray-800 dark:text-zinc-200 placeholder:text-gray-400 dark:text-zinc-600 focus:border-cyan-500/50 focus:outline-none resize-none"
+                          className="w-full bg-white dark:bg-zinc-900/50 border border-gray-300 dark:border-zinc-700 rounded-lg p-3 text-sm text-gray-800 dark:text-zinc-200 placeholder:text-gray-400 dark:placeholder:text-zinc-500 focus:border-cyan-500/50 focus:outline-none resize-none"
                           rows={3}
                           placeholder="Votre reponse..."
                           value={answers[q.id] || ''}

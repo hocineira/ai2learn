@@ -1034,6 +1034,89 @@ async def export_single_result_csv(submission_id: str, current_user: dict = Depe
     )
 
 
+# ─── Settings (Admin) ───
+
+@api_router.get("/settings")
+async def get_settings(current_user: dict = Depends(auth_dependency)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin uniquement")
+    settings = await db.settings.find_one({"key": "global"}, {"_id": 0})
+    if not settings:
+        settings = {"key": "global", "llm_key_set": bool(EMERGENT_LLM_KEY), "llm_key_masked": ""}
+    else:
+        # Mask the key for display
+        key_val = settings.get("llm_key", "")
+        if key_val:
+            settings["llm_key_masked"] = key_val[:8] + "..." + key_val[-4:] if len(key_val) > 12 else "****"
+        else:
+            settings["llm_key_masked"] = ""
+        settings["llm_key_set"] = bool(key_val)
+        settings.pop("llm_key", None)
+    return settings
+
+class SettingsUpdate(BaseModel):
+    llm_key: Optional[str] = None
+
+@api_router.put("/settings")
+async def update_settings(data: SettingsUpdate, current_user: dict = Depends(auth_dependency)):
+    global EMERGENT_LLM_KEY, HAS_EMERGENT_LLM
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin uniquement")
+    
+    update = {"key": "global", "updated_at": datetime.now(timezone.utc).isoformat()}
+    
+    if data.llm_key is not None:
+        update["llm_key"] = data.llm_key
+        # Update runtime variable
+        EMERGENT_LLM_KEY = data.llm_key if data.llm_key else None
+        os.environ['EMERGENT_LLM_KEY'] = data.llm_key or ""
+        # Re-check if module is available
+        if EMERGENT_LLM_KEY:
+            try:
+                from emergentintegrations.llm.chat import LlmChat, UserMessage
+                HAS_EMERGENT_LLM = True
+                logger.info("Cle LLM mise a jour - correction IA activee")
+            except ImportError:
+                HAS_EMERGENT_LLM = False
+                logger.warning("emergentintegrations non installe")
+        else:
+            HAS_EMERGENT_LLM = False
+    
+    await db.settings.update_one({"key": "global"}, {"$set": update}, upsert=True)
+    return {"message": "Parametres mis a jour", "llm_active": HAS_EMERGENT_LLM}
+
+@api_router.put("/profile")
+async def update_profile(current_user: dict = Depends(auth_dependency)):
+    """Get current user profile data"""
+    user = await db.users.find_one({"id": current_user["id"]}, {"_id": 0, "password": 0})
+    return user
+
+class ProfileUpdate(BaseModel):
+    full_name: Optional[str] = None
+    current_password: Optional[str] = None
+    new_password: Optional[str] = None
+
+@api_router.post("/profile/update")
+async def update_user_profile(data: ProfileUpdate, current_user: dict = Depends(auth_dependency)):
+    update = {}
+    if data.full_name and data.full_name.strip():
+        update["full_name"] = data.full_name.strip()
+    
+    if data.new_password:
+        if not data.current_password:
+            raise HTTPException(status_code=400, detail="Mot de passe actuel requis")
+        user_full = await db.users.find_one({"id": current_user["id"]}, {"_id": 0})
+        if not verify_password(data.current_password, user_full["password"]):
+            raise HTTPException(status_code=400, detail="Mot de passe actuel incorrect")
+        update["password"] = hash_password(data.new_password)
+    
+    if not update:
+        raise HTTPException(status_code=400, detail="Rien a mettre a jour")
+    
+    await db.users.update_one({"id": current_user["id"]}, {"$set": update})
+    return {"message": "Profil mis a jour"}
+
+
 # ─── Seed Data ───
 
 @api_router.post("/seed")

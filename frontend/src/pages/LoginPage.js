@@ -70,7 +70,7 @@ export default function LoginPage() {
                 <>
                   <div>
                     <label className="text-xs font-mono text-gray-500 dark:text-zinc-500 uppercase tracking-wider mb-2 block">Nom complet</label>
-                    <Input data-testid="register-fullname" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Votre nom complet" className="bg-white dark:bg-zinc-950 border-gray-200 dark:border-zinc-800 focus:border-cyan-500 focus:ring-cyan-500/20 text-gray-800 dark:text-zinc-100 placeholder:text-gray-400 dark:text-zinc-600" required />
+                    <Input data-testid="register-fullname" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Votre nom complet" className="bg-white dark:bg-zinc-950 border-gray-200 dark:border-zinc-800 focus:border-cyan-500 focus:ring-cyan-500/20 text-gray-800 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500" required />
                   </div>
                   <div>
                     <label className="text-xs font-mono text-gray-500 dark:text-zinc-500 uppercase tracking-wider mb-2 block">Formation</label>
@@ -92,12 +92,12 @@ export default function LoginPage() {
               )}
               <div>
                 <label className="text-xs font-mono text-gray-500 dark:text-zinc-500 uppercase tracking-wider mb-2 block">Email</label>
-                <Input data-testid="login-email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="votre@email.fr" className="bg-white dark:bg-zinc-950 border-gray-200 dark:border-zinc-800 focus:border-cyan-500 focus:ring-cyan-500/20 text-gray-800 dark:text-zinc-100 placeholder:text-gray-400 dark:text-zinc-600" required />
+                <Input data-testid="login-email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="votre@email.fr" className="bg-white dark:bg-zinc-950 border-gray-200 dark:border-zinc-800 focus:border-cyan-500 focus:ring-cyan-500/20 text-gray-800 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500" required />
               </div>
               <div>
                 <label className="text-xs font-mono text-gray-500 dark:text-zinc-500 uppercase tracking-wider mb-2 block">Mot de passe</label>
                 <div className="relative">
-                  <Input data-testid="login-password" type={showPwd ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Votre mot de passe" className="bg-white dark:bg-zinc-950 border-gray-200 dark:border-zinc-800 focus:border-cyan-500 focus:ring-cyan-500/20 text-gray-800 dark:text-zinc-100 placeholder:text-gray-400 dark:text-zinc-600 pr-10" required />
+                  <Input data-testid="login-password" type={showPwd ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Votre mot de passe" className="bg-white dark:bg-zinc-950 border-gray-200 dark:border-zinc-800 focus:border-cyan-500 focus:ring-cyan-500/20 text-gray-800 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 pr-10" required />
                   <button type="button" onClick={() => setShowPwd(!showPwd)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-zinc-500 hover:text-gray-700 dark:text-zinc-300 transition-colors" data-testid="toggle-password">
                     {showPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>

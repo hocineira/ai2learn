@@ -21,6 +21,7 @@ import CoursePage from '@/pages/CoursePage';
 import CourseCreatePage from '@/pages/CourseCreatePage';
 import CoursesListPage from '@/pages/CoursesListPage';
 import CourseViewPage from '@/pages/CourseViewPage';
+import SettingsPage from '@/pages/SettingsPage';
 import axios from 'axios';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -83,6 +84,7 @@ function App() {
             <Route path="/courses/create" element={<ProtectedRoute roles={['admin', 'formateur']}><CourseCreatePage /></ProtectedRoute>} />
             <Route path="/courses/view/:courseId" element={<ProtectedRoute><CourseViewPage /></ProtectedRoute>} />
             <Route path="/courses/:exerciseId" element={<ProtectedRoute><CoursePage /></ProtectedRoute>} />
+            <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
             <Route path="/stats" element={<ProtectedRoute roles={['admin']}><AdminDashboard /></ProtectedRoute>} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>

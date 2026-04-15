@@ -30,16 +30,15 @@ export const Sidebar = ({ children }) => {
       { to: '/dashboard', icon: LayoutDashboard, label: 'Tableau de bord' },
       { to: '/users', icon: Users, label: 'Utilisateurs' },
       { to: '/exercises', icon: BookOpen, label: 'Exercices' },
-      { to: '/exercises/create', icon: PlusCircle, label: 'Creer un exercice' },
       { to: '/courses', icon: Video, label: 'Cours' },
       { to: '/labs', icon: Monitor, label: 'Labs pratiques' },
       { to: '/tracking', icon: BarChart3, label: 'Suivi etudiants' },
       { to: '/submissions', icon: ClipboardList, label: 'Soumissions' },
+      { to: '/settings', icon: Settings, label: 'Parametres' },
     ],
     formateur: [
       { to: '/dashboard', icon: LayoutDashboard, label: 'Tableau de bord' },
       { to: '/exercises', icon: BookOpen, label: 'Exercices' },
-      { to: '/exercises/create', icon: PlusCircle, label: 'Creer un exercice' },
       { to: '/courses', icon: Video, label: 'Cours' },
       { to: '/labs', icon: Monitor, label: 'Labs pratiques' },
       { to: '/tracking', icon: Users, label: 'Suivi etudiants' },
@@ -156,8 +155,8 @@ export const Sidebar = ({ children }) => {
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-48" side="top" align="start">
-              <DropdownMenuItem className="cursor-pointer text-xs">
-                <Settings className="w-3 h-3 mr-2" /> Profil
+              <DropdownMenuItem className="cursor-pointer text-xs" onClick={() => navigate('/settings')}>
+                <Settings className="w-3 h-3 mr-2" /> Profil & Parametres
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem data-testid="logout-btn" className="text-red-500 focus:text-red-500 cursor-pointer text-xs" onClick={handleLogout}>

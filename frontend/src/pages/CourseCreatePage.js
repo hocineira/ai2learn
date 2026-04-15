@@ -490,7 +490,7 @@ export default function CourseCreatePage() {
             value={content}
             onChange={(e) => setContent(e.target.value)}
             placeholder={"Redigez le contenu du cours ici...\n\n## Introduction\n\nLe DNS (Domain Name System) est un service reseau fondamental...\n\n### Objectifs de ce TP\n\n- Installer le role DNS sur Windows Server\n- Configurer une zone de recherche directe\n- Tester la resolution avec nslookup\n\n**Important:** Assurez-vous de bien comprendre les concepts avant de demarrer le lab."}
-            className="w-full min-h-[400px] bg-white dark:bg-zinc-900/50 border border-gray-300 dark:border-zinc-700 rounded-lg p-4 text-sm text-gray-800 dark:text-zinc-200 placeholder:text-gray-400 dark:text-zinc-600 focus:border-cyan-500/50 focus:outline-none resize-y font-mono"
+            className="w-full min-h-[400px] bg-white dark:bg-zinc-900/50 border border-gray-300 dark:border-zinc-700 rounded-lg p-4 text-sm text-gray-800 dark:text-zinc-200 placeholder:text-gray-400 dark:placeholder:text-zinc-500 focus:border-cyan-500/50 focus:outline-none resize-y font-mono"
             data-testid="course-content-input"
           />
         </CardContent>

@@ -38,8 +38,12 @@ export default function ExerciseCreate() {
     }).catch(console.error);
   }, [API, getAuthHeaders, formation]);
 
+  const generateId = () => {
+    try { return crypto.randomUUID(); } catch { return 'q-' + Math.random().toString(36).substr(2, 9) + '-' + Date.now(); }
+  };
+
   const addQuestion = (type) => {
-    setQuestions([...questions, { id: crypto.randomUUID(), question_text: '', question_type: type, options: type === 'qcm' ? ['', '', '', ''] : [], correct_answer: '', points: 2 }]);
+    setQuestions([...questions, { id: generateId(), question_text: '', question_type: type, options: type === 'qcm' ? ['', '', '', ''] : [], correct_answer: '', points: 2 }]);
   };
 
   const updateQuestion = (idx, field, value) => {
@@ -92,18 +96,18 @@ export default function ExerciseCreate() {
         <CardContent className="p-6 space-y-4">
           <div>
             <label className="text-xs font-mono text-gray-500 dark:text-zinc-500 uppercase tracking-wider mb-2 block">Titre</label>
-            <Input data-testid="exercise-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex: Les bases du reseau TCP/IP" className="bg-white dark:bg-zinc-950 border-gray-200 dark:border-zinc-800 focus:border-cyan-500 text-zinc-100 placeholder:text-gray-400 dark:text-zinc-600" />
+            <Input data-testid="exercise-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex: Les bases du reseau TCP/IP" className="bg-white dark:bg-zinc-950 border-gray-200 dark:border-zinc-800 focus:border-cyan-500 text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500" />
           </div>
           <div>
             <label className="text-xs font-mono text-gray-500 dark:text-zinc-500 uppercase tracking-wider mb-2 block">Description</label>
             <textarea data-testid="exercise-description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description de l'exercice..."
-              className="w-full min-h-[80px] bg-white dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 text-zinc-100 placeholder:text-gray-400 dark:text-zinc-600 rounded-md px-3 py-2 text-sm resize-none" />
+              className="w-full min-h-[80px] bg-white dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 rounded-md px-3 py-2 text-sm resize-none" />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="text-xs font-mono text-gray-500 dark:text-zinc-500 uppercase tracking-wider mb-2 block">Formation</label>
               <Select value={formation} onValueChange={(v) => { setFormation(v); setCategory(''); }}>
-                <SelectTrigger data-testid="exercise-formation" className="bg-white dark:bg-zinc-950 border-gray-200 dark:border-zinc-800 text-zinc-100">
+                <SelectTrigger data-testid="exercise-formation" className="bg-white dark:bg-zinc-950 border-gray-200 dark:border-zinc-800 text-gray-900 dark:text-zinc-100">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-gray-50 dark:bg-zinc-900 border-gray-200 dark:border-gray-200 dark:border-zinc-800">
@@ -121,7 +125,7 @@ export default function ExerciseCreate() {
             <div>
               <label className="text-xs font-mono text-gray-500 dark:text-zinc-500 uppercase tracking-wider mb-2 block">Categorie</label>
               <Select value={category} onValueChange={setCategory}>
-                <SelectTrigger data-testid="exercise-category" className="bg-white dark:bg-zinc-950 border-gray-200 dark:border-zinc-800 text-zinc-100">
+                <SelectTrigger data-testid="exercise-category" className="bg-white dark:bg-zinc-950 border-gray-200 dark:border-zinc-800 text-gray-900 dark:text-zinc-100">
                   <SelectValue placeholder="Choisir..." />
                 </SelectTrigger>
                 <SelectContent className="bg-gray-50 dark:bg-zinc-900 border-gray-200 dark:border-gray-200 dark:border-zinc-800">
@@ -133,7 +137,7 @@ export default function ExerciseCreate() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="text-xs font-mono text-gray-500 dark:text-zinc-500 uppercase tracking-wider mb-2 block">Temps limite (min)</label>
-              <Input data-testid="exercise-time-limit" type="number" value={timeLimit} onChange={(e) => setTimeLimit(e.target.value)} min={0} placeholder="0 = illimite" className="bg-white dark:bg-zinc-950 border-gray-200 dark:border-zinc-800 focus:border-cyan-500 text-zinc-100 placeholder:text-gray-400 dark:text-zinc-600" />
+              <Input data-testid="exercise-time-limit" type="number" value={timeLimit} onChange={(e) => setTimeLimit(e.target.value)} min={0} placeholder="0 = illimite" className="bg-white dark:bg-zinc-950 border-gray-200 dark:border-zinc-800 focus:border-cyan-500 text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500" />
             </div>
             <div className="flex items-end">
               <label className="flex items-center gap-2 cursor-pointer p-2">
@@ -166,16 +170,16 @@ export default function ExerciseCreate() {
                 <label className="text-xs font-mono text-gray-500 dark:text-zinc-500 uppercase tracking-wider mb-2 block">Consignes du lab</label>
                 <textarea data-testid="lab-instructions" value={labInstructions} onChange={(e) => setLabInstructions(e.target.value)}
                   placeholder="Decrivez les etapes que l'etudiant doit realiser dans la VM..."
-                  className="w-full min-h-[120px] bg-white dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-zinc-100 placeholder:text-gray-400 dark:text-zinc-600 rounded-md px-3 py-2 text-sm resize-none" />
+                  className="w-full min-h-[120px] bg-white dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 rounded-md px-3 py-2 text-sm resize-none" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-xs font-mono text-gray-500 dark:text-zinc-500 uppercase tracking-wider mb-2 block">Utilisateur RDP</label>
-                  <Input data-testid="lab-username" value={labUsername} onChange={(e) => setLabUsername(e.target.value)} className="bg-white dark:bg-zinc-950 border-gray-200 dark:border-zinc-800 focus:border-orange-500 text-zinc-100" />
+                  <Input data-testid="lab-username" value={labUsername} onChange={(e) => setLabUsername(e.target.value)} className="bg-white dark:bg-zinc-950 border-gray-200 dark:border-zinc-800 focus:border-orange-500 text-gray-900 dark:text-zinc-100" />
                 </div>
                 <div>
                   <label className="text-xs font-mono text-gray-500 dark:text-zinc-500 uppercase tracking-wider mb-2 block">Mot de passe RDP</label>
-                  <Input data-testid="lab-password" value={labPassword} onChange={(e) => setLabPassword(e.target.value)} className="bg-white dark:bg-zinc-950 border-gray-200 dark:border-zinc-800 focus:border-orange-500 text-zinc-100" />
+                  <Input data-testid="lab-password" value={labPassword} onChange={(e) => setLabPassword(e.target.value)} className="bg-white dark:bg-zinc-950 border-gray-200 dark:border-zinc-800 focus:border-orange-500 text-gray-900 dark:text-zinc-100" />
                 </div>
               </div>
             </div>
@@ -197,21 +201,21 @@ export default function ExerciseCreate() {
                 </CardTitle>
               </div>
               <div className="flex items-center gap-2">
-                <Input type="number" value={q.points} onChange={(e) => updateQuestion(idx, 'points', e.target.value)} className="w-16 h-7 bg-white dark:bg-zinc-950 border-gray-200 dark:border-zinc-800 text-zinc-100 text-xs text-center" min={1} />
+                <Input type="number" value={q.points} onChange={(e) => updateQuestion(idx, 'points', e.target.value)} className="w-16 h-7 bg-white dark:bg-zinc-950 border-gray-200 dark:border-zinc-800 text-gray-900 dark:text-zinc-100 text-xs text-center" min={1} />
                 <span className="text-xs text-gray-500 dark:text-zinc-500">pts</span>
                 <Button size="icon" variant="ghost" className="h-7 w-7 text-red-400 hover:text-red-300" onClick={() => removeQuestion(idx)}><Trash2 className="w-3 h-3" /></Button>
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
               <textarea data-testid={`question-text-${idx}`} value={q.question_text} onChange={(e) => updateQuestion(idx, 'question_text', e.target.value)} placeholder="Texte de la question..."
-                className="w-full min-h-[60px] bg-white dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 text-zinc-100 placeholder:text-gray-400 dark:text-zinc-600 rounded-md px-3 py-2 text-sm resize-none" />
+                className="w-full min-h-[60px] bg-white dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 rounded-md px-3 py-2 text-sm resize-none" />
               {q.question_type === 'qcm' && (
                 <div className="space-y-2">
                   <label className="text-xs font-mono text-gray-500 dark:text-zinc-500 uppercase tracking-wider">Options</label>
                   {q.options.map((opt, oIdx) => (
                     <div key={oIdx} className="flex items-center gap-2">
                       <span className="text-xs text-gray-500 dark:text-zinc-500 w-6">{String.fromCharCode(65 + oIdx)}.</span>
-                      <Input data-testid={`option-${idx}-${oIdx}`} value={opt} onChange={(e) => updateOption(idx, oIdx, e.target.value)} placeholder={`Option ${String.fromCharCode(65 + oIdx)}`} className="bg-white dark:bg-zinc-950 border-gray-200 dark:border-zinc-800 focus:border-cyan-500 text-zinc-100 placeholder:text-gray-400 dark:text-zinc-600 flex-1" />
+                      <Input data-testid={`option-${idx}-${oIdx}`} value={opt} onChange={(e) => updateOption(idx, oIdx, e.target.value)} placeholder={`Option ${String.fromCharCode(65 + oIdx)}`} className="bg-white dark:bg-zinc-950 border-gray-200 dark:border-zinc-800 focus:border-cyan-500 text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 flex-1" />
                     </div>
                   ))}
                   <Button size="sm" variant="ghost" className="text-xs text-gray-500 dark:text-zinc-400 hover:text-cyan-400" onClick={() => addOption(idx)}>+ Ajouter une option</Button>
@@ -219,7 +223,7 @@ export default function ExerciseCreate() {
               )}
               <div>
                 <label className="text-xs font-mono text-gray-500 dark:text-zinc-500 uppercase tracking-wider mb-2 block">{q.question_type === 'qcm' ? 'Reponse correcte' : "Reponse attendue (guide pour l'IA)"}</label>
-                <Input data-testid={`correct-answer-${idx}`} value={q.correct_answer} onChange={(e) => updateQuestion(idx, 'correct_answer', e.target.value)} placeholder={q.question_type === 'qcm' ? 'Ex: DNS' : 'Elements de reponse attendus...'} className="bg-white dark:bg-zinc-950 border-gray-200 dark:border-zinc-800 focus:border-cyan-500 text-zinc-100 placeholder:text-gray-400 dark:text-zinc-600" />
+                <Input data-testid={`correct-answer-${idx}`} value={q.correct_answer} onChange={(e) => updateQuestion(idx, 'correct_answer', e.target.value)} placeholder={q.question_type === 'qcm' ? 'Ex: DNS' : 'Elements de reponse attendus...'} className="bg-white dark:bg-zinc-950 border-gray-200 dark:border-zinc-800 focus:border-cyan-500 text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500" />
               </div>
             </CardContent>
           </Card>
