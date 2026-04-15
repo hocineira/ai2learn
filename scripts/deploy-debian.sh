@@ -7,6 +7,9 @@
 
 set -e
 
+# S'assurer que les binaires systeme sont dans le PATH
+export PATH="$PATH:/usr/sbin:/usr/local/sbin:/sbin"
+
 # Couleurs
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -140,27 +143,80 @@ install_system_deps() {
         software-properties-common apt-transport-https \
         build-essential git unzip nano htop \
         python3 python3-pip python3-venv python3-dev \
-        ufw
+        ufw openssl
     
-    # Installer Nginx separement pour mieux detecter les erreurs
+    # ─── Installation Nginx ───
     log_info "Installation de Nginx..."
-    apt-get install -y nginx || {
-        log_error "Echec de l'installation de Nginx. Tentative alternative..."
-        # Sur certains Debian, il faut activer le repo
-        apt-get update
-        apt-get install -y nginx-full 2>/dev/null || apt-get install -y nginx-light 2>/dev/null || {
-            log_error "Impossible d'installer Nginx. Installez-le manuellement: apt-get install nginx"
-            exit 1
-        }
-    }
     
-    # Verifier que nginx est bien installe
-    if ! command -v nginx &> /dev/null; then
-        log_error "Nginx n'est pas dans le PATH. Verifiez l'installation."
-        exit 1
+    # Tentative 1 : depuis les repos Debian par defaut
+    if ! apt-get install -y nginx 2>/dev/null; then
+        log_warn "Nginx non disponible dans les repos par defaut. Ajout du repo officiel Nginx..."
+        
+        # Ajouter le repo officiel Nginx pour Debian
+        curl -fsSL https://nginx.org/keys/nginx_signing.key | gpg --dearmor -o /usr/share/keyrings/nginx-archive-keyring.gpg 2>/dev/null
+        
+        DEBIAN_CODENAME=$(lsb_release -cs 2>/dev/null || echo "bookworm")
+        # Fallback sur bookworm si la version n'est pas supportee
+        case "$DEBIAN_CODENAME" in
+            bookworm|bullseye|buster) ;;
+            *) DEBIAN_CODENAME="bookworm" ;;
+        esac
+        
+        echo "deb [signed-by=/usr/share/keyrings/nginx-archive-keyring.gpg] http://nginx.org/packages/debian ${DEBIAN_CODENAME} nginx" | \
+            tee /etc/apt/sources.list.d/nginx.list
+        
+        # Priorite au repo officiel nginx
+        cat > /etc/apt/preferences.d/99nginx << 'PREFEOF'
+Package: *
+Pin: origin nginx.org
+Pin-Priority: 900
+PREFEOF
+        
+        apt-get update
+        
+        # Tentative 2 : depuis le repo officiel nginx
+        if ! apt-get install -y nginx; then
+            log_warn "Repo officiel echoue. Tentative avec nginx-full/nginx-light..."
+            apt-get install -y nginx-full 2>/dev/null || apt-get install -y nginx-light 2>/dev/null || {
+                log_error "═══════════════════════════════════════"
+                log_error "Impossible d'installer Nginx automatiquement."
+                log_error "Installez-le manuellement puis relancez le script :"
+                log_error "  apt-get update && apt-get install -y nginx"
+                log_error "  bash deploy-debian.sh"
+                log_error "═══════════════════════════════════════"
+                exit 1
+            }
+        fi
     fi
     
-    # Certbot (optionnel, ne bloque pas si echec)
+    # Verifier que nginx est bien installe et dans le PATH
+    NGINX_BIN=""
+    if command -v nginx &> /dev/null; then
+        NGINX_BIN="nginx"
+    elif [ -x /usr/sbin/nginx ]; then
+        NGINX_BIN="/usr/sbin/nginx"
+        # Ajouter au PATH pour la suite du script
+        export PATH="$PATH:/usr/sbin"
+    elif [ -x /usr/local/sbin/nginx ]; then
+        NGINX_BIN="/usr/local/sbin/nginx"
+        export PATH="$PATH:/usr/local/sbin"
+    fi
+    
+    if [ -z "$NGINX_BIN" ]; then
+        log_error "Nginx installe mais introuvable. Cherchons..."
+        NGINX_FOUND=$(find / -name "nginx" -type f -executable 2>/dev/null | head -1)
+        if [ -n "$NGINX_FOUND" ]; then
+            NGINX_BIN="$NGINX_FOUND"
+            NGINX_DIR=$(dirname "$NGINX_FOUND")
+            export PATH="$PATH:$NGINX_DIR"
+            log_info "Nginx trouve a : $NGINX_FOUND"
+        else
+            log_error "Nginx non trouve sur le systeme. Installez-le manuellement."
+            exit 1
+        fi
+    fi
+    
+    # Certbot (optionnel)
     apt-get install -y certbot python3-certbot-nginx 2>/dev/null || {
         log_warn "Certbot non installe - SSL Let's Encrypt ne sera pas disponible"
     }
@@ -170,7 +226,7 @@ install_system_deps() {
     systemctl start nginx 2>/dev/null || true
     
     log_success "Paquets systeme installes"
-    log_success "Nginx $(nginx -v 2>&1 | cut -d'/' -f2)"
+    log_success "Nginx : $($NGINX_BIN -v 2>&1)"
 }
 
 # ─── Installation Node.js 20 LTS ───
@@ -466,6 +522,8 @@ NGXEOF
     
     # Test et reload
     log_info "Test de la configuration Nginx..."
+    # S'assurer que nginx est dans le PATH
+    export PATH="$PATH:/usr/sbin:/usr/local/sbin"
     nginx -t 2>&1 || {
         log_error "Configuration Nginx invalide ! Verifiez /etc/nginx/sites-available/ai2lean"
         exit 1
