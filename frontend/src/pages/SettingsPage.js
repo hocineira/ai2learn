@@ -198,8 +198,9 @@ export default function SettingsPage() {
 
             <p className="text-xs th-text-faint">
               Supports : <strong>Google Gemini</strong> (cle AIzaSy...) ou <strong>Emergent/OpenAI</strong> (cle sk-emergent-...).
-              Le provider est detecte automatiquement.
+              Le provider est detecte automatiquement. Si Google echoue (quota), le systeme basculera sur Emergent comme backup.
               Pour Google Gemini : <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer" className="text-cyan-500 underline">obtenir une cle gratuite</a>.
+              Modeles Gemini supportes : gemini-2.5-flash, gemini-2.0-flash, gemini-2.0-flash-lite.
             </p>
           </CardContent>
         </Card>

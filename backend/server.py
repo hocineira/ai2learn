@@ -37,7 +37,10 @@ logger = logging.getLogger(__name__)
 # ─── LLM Provider Detection ───
 LLM_PROVIDER = None  # "emergent", "google", or None
 LLM_KEY = None
+LLM_KEY_DB = None  # Key from DB settings (user-configured via admin panel)
+LLM_PROVIDER_DB = None
 HAS_EMERGENT_LLM = False
+EMERGENT_KEY_ENV = EMERGENT_LLM_KEY  # Keep original .env key for fallback
 
 def detect_llm_provider(key: str):
     """Detect LLM provider from API key format"""
@@ -50,98 +53,121 @@ def detect_llm_provider(key: str):
             from emergentintegrations.llm.chat import LlmChat, UserMessage
             return "emergent", True
         except ImportError:
-            logger.warning("emergentintegrations non installe - tentative Google genai")
+            logger.warning("emergentintegrations non installe")
             return None, False
-    # Default: try google
-    return "google", True
+    return None, False
 
 def init_llm():
     global LLM_PROVIDER, LLM_KEY, HAS_EMERGENT_LLM, EMERGENT_LLM_KEY
     key = EMERGENT_LLM_KEY
-    # Also check settings in sync way (will be overridden at first request)
     if key:
         provider, available = detect_llm_provider(key)
         LLM_PROVIDER = provider
         LLM_KEY = key
         HAS_EMERGENT_LLM = available
-        logger.info(f"LLM Provider: {provider or 'aucun'} - {'actif' if available else 'inactif'}")
+        logger.info(f"LLM Provider (.env): {provider or 'aucun'} - {'actif' if available else 'inactif'}")
     else:
-        logger.info("Aucune cle LLM configuree - correction IA desactivee")
+        logger.info("Aucune cle LLM dans .env - correction IA desactivee (configurable via Parametres)")
 
 init_llm()
 
-async def call_llm(system_message: str, user_message: str, session_id: str = "grading") -> str:
-    """Universal LLM call - supports Emergent and Google Gemini"""
-    global LLM_PROVIDER, LLM_KEY
+async def _load_db_llm_key():
+    """Load LLM key from DB settings (set by admin via Settings page)"""
+    global LLM_KEY_DB, LLM_PROVIDER_DB
+    settings = await db.settings.find_one({"key": "global"}, {"_id": 0})
+    if settings and settings.get("llm_key"):
+        LLM_KEY_DB = settings["llm_key"]
+        provider, _ = detect_llm_provider(LLM_KEY_DB)
+        LLM_PROVIDER_DB = provider
+        return LLM_KEY_DB, LLM_PROVIDER_DB
+    return None, None
+
+async def _call_google(api_key: str, system_message: str, user_message: str) -> str:
+    """Call Google Gemini with current model names"""
+    import google.generativeai as genai
+    genai.configure(api_key=api_key)
     
-    # Try to load key from DB settings if not set
-    if not LLM_KEY:
-        settings = await db.settings.find_one({"key": "global"}, {"_id": 0})
-        if settings and settings.get("llm_key"):
-            LLM_KEY = settings["llm_key"]
-            provider, _ = detect_llm_provider(LLM_KEY)
-            LLM_PROVIDER = provider
+    # Updated model names - July 2025 valid models
+    models_to_try = ["gemini-2.0-flash-lite", "gemini-2.5-flash", "gemini-2.0-flash"]
+    last_error = None
     
-    if not LLM_KEY:
-        raise Exception("Aucune cle LLM configuree")
-    
-    if LLM_PROVIDER == "google":
-        import google.generativeai as genai
-        genai.configure(api_key=LLM_KEY)
-        
-        # Try models in order of preference (free tier compatible)
-        models_to_try = ["gemini-1.5-flash", "gemini-2.0-flash-lite", "gemini-2.0-flash", "gemini-1.5-pro"]
-        last_error = None
-        
-        for model_name in models_to_try:
-            try:
-                model = genai.GenerativeModel(
-                    model_name=model_name,
-                    system_instruction=system_message
-                )
-                response = model.generate_content(user_message)
-                logger.info(f"LLM Google repondu avec {model_name}")
-                return response.text
-            except Exception as e:
-                last_error = e
-                error_str = str(e)
-                if "429" in error_str or "quota" in error_str.lower():
-                    logger.warning(f"Quota depasse pour {model_name}, essai suivant...")
-                    continue
-                elif "not found" in error_str.lower() or "not supported" in error_str.lower():
-                    logger.warning(f"Modele {model_name} non disponible, essai suivant...")
-                    continue
-                else:
-                    raise e
-        
-        raise Exception(f"Tous les modeles Google ont echoue. Derniere erreur: {last_error}")
-    
-    elif LLM_PROVIDER == "emergent":
-        from emergentintegrations.llm.chat import LlmChat, UserMessage
-        chat = LlmChat(
-            api_key=LLM_KEY,
-            session_id=session_id,
-            system_message=system_message
-        )
-        chat.with_model("openai", "gpt-5.2")
-        response = await chat.send_message(UserMessage(text=user_message))
-        return response
-    
-    else:
-        # Fallback: try Google with multiple models
+    for model_name in models_to_try:
         try:
-            import google.generativeai as genai
-            genai.configure(api_key=LLM_KEY)
-            for model_name in ["gemini-1.5-flash", "gemini-2.0-flash-lite"]:
-                try:
-                    model = genai.GenerativeModel(model_name=model_name, system_instruction=system_message)
-                    response = model.generate_content(user_message)
-                    return response.text
-                except Exception:
-                    continue
-            raise Exception("Aucun modele disponible")
+            model = genai.GenerativeModel(
+                model_name=model_name,
+                system_instruction=system_message
+            )
+            response = model.generate_content(user_message)
+            logger.info(f"LLM Google repondu avec {model_name}")
+            return response.text
         except Exception as e:
-            raise Exception(f"LLM non disponible: {e}")
+            last_error = e
+            error_str = str(e)
+            if "429" in error_str or "quota" in error_str.lower() or "exhausted" in error_str.lower():
+                logger.warning(f"Quota depasse pour {model_name}, essai suivant...")
+                continue
+            elif "not found" in error_str.lower() or "not supported" in error_str.lower():
+                logger.warning(f"Modele {model_name} non disponible, essai suivant...")
+                continue
+            else:
+                logger.warning(f"Erreur Google {model_name}: {error_str[:100]}")
+                continue
+    
+    raise Exception(f"Google Gemini: tous les modeles ont echoue. Derniere erreur: {str(last_error)[:150]}")
+
+async def _call_emergent(api_key: str, system_message: str, user_message: str, session_id: str) -> str:
+    """Call Emergent/OpenAI"""
+    from emergentintegrations.llm.chat import LlmChat, UserMessage
+    chat = LlmChat(
+        api_key=api_key,
+        session_id=session_id,
+        system_message=system_message
+    )
+    chat.with_model("openai", "gpt-4.1-nano")
+    response = await chat.send_message(UserMessage(text=user_message))
+    return response
+
+async def call_llm(system_message: str, user_message: str, session_id: str = "grading") -> str:
+    """Universal LLM call - tries DB key first, then .env Emergent key as fallback"""
+    
+    # 1. Try to load user-configured key from DB (admin panel)
+    db_key, db_provider = await _load_db_llm_key()
+    
+    # 2. Determine keys to try in order: DB key first, then .env Emergent key as fallback
+    attempts = []
+    if db_key and db_provider:
+        attempts.append(("db", db_key, db_provider))
+    if EMERGENT_KEY_ENV:
+        env_provider, env_available = detect_llm_provider(EMERGENT_KEY_ENV)
+        if env_available and not (db_key and db_key == EMERGENT_KEY_ENV):
+            attempts.append(("env", EMERGENT_KEY_ENV, env_provider))
+    
+    # Also check current global LLM_KEY if different
+    if LLM_KEY and not any(a[1] == LLM_KEY for a in attempts):
+        provider, available = detect_llm_provider(LLM_KEY)
+        if available:
+            attempts.append(("global", LLM_KEY, provider))
+    
+    if not attempts:
+        raise Exception("Aucune cle LLM configuree. Allez dans Parametres pour ajouter une cle API.")
+    
+    last_error = None
+    for source, key, provider in attempts:
+        try:
+            if provider == "google":
+                result = await _call_google(key, system_message, user_message)
+                logger.info(f"LLM OK via Google (source: {source})")
+                return result
+            elif provider == "emergent":
+                result = await _call_emergent(key, system_message, user_message, session_id)
+                logger.info(f"LLM OK via Emergent (source: {source})")
+                return result
+        except Exception as e:
+            last_error = e
+            logger.warning(f"LLM echoue ({source}/{provider}): {str(e)[:120]} - essai suivant...")
+            continue
+    
+    raise Exception(f"Correction IA impossible. {str(last_error)[:200]}")
 
 # ─── Formations & Categories ───
 
@@ -239,6 +265,7 @@ class CourseCreate(BaseModel):
     title: str
     content: str = ""
     video_filename: Optional[str] = None
+    images: List[str] = []  # List of image filenames
     objectives: List[str] = []
     prerequisites: List[str] = []
     duration_estimate: Optional[str] = None
@@ -250,15 +277,18 @@ class CourseUpdate(BaseModel):
     title: Optional[str] = None
     content: Optional[str] = None
     video_filename: Optional[str] = None
+    images: Optional[List[str]] = None  # List of image filenames
     objectives: Optional[List[str]] = None
     prerequisites: Optional[List[str]] = None
     duration_estimate: Optional[str] = None
     formation: Optional[str] = None
     category: Optional[str] = None
 
-# Upload directory
+# Upload directories
 UPLOAD_DIR = ROOT_DIR / "uploads" / "videos"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+UPLOAD_IMAGES_DIR = ROOT_DIR / "uploads" / "images"
+UPLOAD_IMAGES_DIR.mkdir(parents=True, exist_ok=True)
 
 # ─── Auth Helpers ───
 
@@ -527,7 +557,8 @@ async def create_submission(data: SubmissionCreate, current_user: dict = Depends
     }
     await db.submissions.insert_one(submission_doc)
     
-    if has_open_questions and EMERGENT_LLM_KEY:
+    if has_open_questions:
+        # Try AI grading - will use DB key, .env Emergent key, or any available provider
         try:
             await grade_submission_with_ai(submission_id)
         except Exception as e:
@@ -564,19 +595,10 @@ def _get_question_max_pts(exercise, question_id):
     return q.get("points", 1) if q else 1
 
 async def grade_submission_with_ai(submission_id: str):
-    global LLM_KEY, LLM_PROVIDER
-    
-    # Check if LLM is available
-    if not LLM_KEY:
-        # Try loading from DB
-        settings = await db.settings.find_one({"key": "global"}, {"_id": 0})
-        if settings and settings.get("llm_key"):
-            LLM_KEY = settings["llm_key"]
-            provider, _ = detect_llm_provider(LLM_KEY)
-            LLM_PROVIDER = provider
-    
-    if not LLM_KEY:
-        logger.warning("Correction IA impossible: aucune cle LLM")
+    # Check if any LLM is available (DB key, .env key, or global)
+    db_key, _ = await _load_db_llm_key()
+    if not db_key and not EMERGENT_KEY_ENV and not LLM_KEY:
+        logger.warning("Correction IA impossible: aucune cle LLM configuree")
         return
     
     submission = await db.submissions.find_one({"id": submission_id}, {"_id": 0})
@@ -657,19 +679,19 @@ async def grade_submission_with_ai(submission_id: str):
     
     if vm_validation_results:
         grading_prompt += (
-            f"IMPORTANT: Des scripts PowerShell ont ete executes sur la VM de l'etudiant pour verifier son travail pratique. "
-            f"Prends en compte ces resultats dans ton evaluation. Un etudiant qui a correctement configure sa VM "
-            f"mais mal repondu aux questions doit quand meme avoir des points. "
-            f"Inversement, un etudiant qui repond bien mais n'a rien fait sur la VM perd des points. "
+            "IMPORTANT: Des scripts PowerShell ont ete executes sur la VM de l'etudiant pour verifier son travail pratique. "
+            "Prends en compte ces resultats dans ton evaluation. Un etudiant qui a correctement configure sa VM "
+            "mais mal repondu aux questions doit quand meme avoir des points. "
+            "Inversement, un etudiant qui repond bien mais n'a rien fait sur la VM perd des points. "
         )
     
     grading_prompt += (
-        f"Pour chaque question ouverte, attribue un score sur les points disponibles. "
-        f"IMPORTANT: Utilise exactement les Question ID fournis dans ta reponse. "
-        f"Reponds en JSON avec ce format exact: "
-        f'{{"scores": [{{"question_id": "COPIE_LE_QUESTION_ID_ICI", "points_earned": X, "feedback": "..."}}], '
-        f'"total_score": X, "general_feedback": "...", '
-        f'"vm_validation_summary": "Resume des verifications VM"}}\n\n'
+        "Pour chaque question ouverte, attribue un score sur les points disponibles. "
+        "IMPORTANT: Utilise exactement les Question ID fournis dans ta reponse. "
+        "Reponds en JSON avec ce format exact: "
+        '{"scores": [{"question_id": "COPIE_LE_QUESTION_ID_ICI", "points_earned": X, "feedback": "..."}], '
+        '"total_score": X, "general_feedback": "...", '
+        '"vm_validation_summary": "Resume des verifications VM"}\n\n'
         + "\n\n".join(prompt_parts)
         + vm_context
     )
@@ -796,11 +818,10 @@ async def grade_submission_with_ai(submission_id: str):
 
 @api_router.post("/grade/{submission_id}")
 async def trigger_grading(submission_id: str, current_user: dict = Depends(auth_dependency)):
-    if not LLM_KEY and not EMERGENT_LLM_KEY:
-        # Try loading from DB
-        settings = await db.settings.find_one({"key": "global"}, {"_id": 0})
-        if not settings or not settings.get("llm_key"):
-            raise HTTPException(status_code=500, detail="Correction IA non disponible (aucune cle configuree). Allez dans Parametres pour ajouter une cle.")
+    # Check if any LLM key is available
+    db_key, _ = await _load_db_llm_key()
+    if not db_key and not EMERGENT_KEY_ENV and not LLM_KEY:
+        raise HTTPException(status_code=500, detail="Correction IA non disponible (aucune cle configuree). Allez dans Parametres pour ajouter une cle.")
     
     # Students can grade their own lab submissions
     submission = await db.submissions.find_one({"id": submission_id}, {"_id": 0})
@@ -1344,6 +1365,7 @@ async def create_course(data: CourseCreate, current_user: dict = Depends(auth_de
         "title": data.title,
         "content": data.content,
         "video_filename": data.video_filename,
+        "images": data.images,
         "objectives": data.objectives,
         "prerequisites": data.prerequisites,
         "duration_estimate": data.duration_estimate,
@@ -1416,6 +1438,8 @@ async def update_course(course_id: str, data: CourseUpdate, current_user: dict =
         update["content"] = data.content
     if data.video_filename is not None:
         update["video_filename"] = data.video_filename
+    if data.images is not None:
+        update["images"] = data.images
     if data.objectives is not None:
         update["objectives"] = data.objectives
     if data.prerequisites is not None:
@@ -1446,6 +1470,12 @@ async def delete_course(course_id: str, current_user: dict = Depends(auth_depend
         video_path = UPLOAD_DIR / course["video_filename"]
         if video_path.exists():
             video_path.unlink()
+    
+    # Delete associated images
+    for img_filename in course.get("images", []):
+        img_path = UPLOAD_IMAGES_DIR / img_filename
+        if img_path.exists():
+            img_path.unlink()
     
     await db.courses.delete_one({"id": course_id})
     return {"message": "Cours supprime"}
@@ -1517,6 +1547,65 @@ async def list_videos(current_user: dict = Depends(auth_dependency)):
                     "modified": datetime.fromtimestamp(f.stat().st_mtime, tz=timezone.utc).isoformat(),
                 })
     return videos
+
+
+# ─── Image Upload & Serve ───
+
+@api_router.post("/upload/image")
+async def upload_image(file: UploadFile = File(...), current_user: dict = Depends(auth_dependency)):
+    if current_user["role"] not in ["admin", "formateur"]:
+        raise HTTPException(status_code=403, detail="Acces refuse")
+    
+    # Validate file type
+    allowed_types = ["image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml"]
+    if not file.content_type or file.content_type not in allowed_types:
+        raise HTTPException(status_code=400, detail="Le fichier doit etre une image (JPEG, PNG, GIF, WebP, SVG)")
+    
+    # Generate unique filename
+    ext = Path(file.filename).suffix if file.filename else ".png"
+    filename = f"{uuid.uuid4()}{ext}"
+    filepath = UPLOAD_IMAGES_DIR / filename
+    
+    # Save file in chunks
+    try:
+        with open(filepath, "wb") as buffer:
+            while chunk := await file.read(1024 * 1024):  # 1MB chunks
+                buffer.write(chunk)
+    except Exception as e:
+        if filepath.exists():
+            filepath.unlink()
+        raise HTTPException(status_code=500, detail=f"Erreur upload: {str(e)}")
+    
+    file_size = filepath.stat().st_size
+    return {
+        "filename": filename,
+        "original_name": file.filename,
+        "size": file_size,
+        "content_type": file.content_type,
+    }
+
+@api_router.get("/images/{filename}")
+async def serve_image(filename: str):
+    filepath = UPLOAD_IMAGES_DIR / filename
+    if not filepath.exists():
+        raise HTTPException(status_code=404, detail="Image non trouvee")
+    
+    content_type = "image/png"
+    ext = Path(filename).suffix.lower()
+    type_map = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".gif": "image/gif", ".webp": "image/webp", ".svg": "image/svg+xml"}
+    content_type = type_map.get(ext, "image/png")
+    
+    return FileResponse(filepath, media_type=content_type, filename=filename)
+
+@api_router.delete("/images/{filename}")
+async def delete_image(filename: str, current_user: dict = Depends(auth_dependency)):
+    if current_user["role"] not in ["admin", "formateur"]:
+        raise HTTPException(status_code=403, detail="Acces refuse")
+    filepath = UPLOAD_IMAGES_DIR / filename
+    if not filepath.exists():
+        raise HTTPException(status_code=404, detail="Image non trouvee")
+    filepath.unlink()
+    return {"message": "Image supprimee"}
 
 
 # ─── Proxmox + Guacamole Lab Integration ───
@@ -1608,7 +1697,6 @@ def guac_delete_connection(token, conn_id):
             return True
     return False
 
-import base64
 
 class LabStart(BaseModel):
     exercise_id: str

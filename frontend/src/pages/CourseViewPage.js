@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import {
   BookOpen, Play, ArrowLeft, Clock, Target, CheckCircle2,
   Monitor, AlertCircle, Video, ChevronRight,
-  Loader2, ListChecks, Lightbulb, PlayCircle
+  Loader2, ListChecks, Lightbulb, PlayCircle, ImageIcon, ZoomIn, X
 } from 'lucide-react';
 
 export default function CourseViewPage() {
@@ -20,6 +20,7 @@ export default function CourseViewPage() {
   const [loading, setLoading] = useState(true);
   const videoRef = useRef(null);
   const [videoPlaying, setVideoPlaying] = useState(false);
+  const [lightboxImage, setLightboxImage] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -197,6 +198,62 @@ export default function CourseViewPage() {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Images d'illustration */}
+      {course.images && course.images.length > 0 && (
+        <Card className="bg-white/90 dark:bg-zinc-900/50 backdrop-blur-md border-gray-200 dark:border-zinc-800 shadow-sm dark:shadow-none">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm flex items-center gap-2 text-emerald-500 dark:text-emerald-400" style={{ fontFamily: 'Space Grotesk' }}>
+              <ImageIcon className="w-4 h-4" /> Illustrations
+              <Badge className="bg-emerald-500/15 text-emerald-400 border-emerald-500/30 text-[10px] ml-2">
+                {course.images.length} image{course.images.length > 1 ? 's' : ''}
+              </Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className={`grid gap-3 ${course.images.length === 1 ? 'grid-cols-1' : course.images.length === 2 ? 'grid-cols-2' : 'grid-cols-2 md:grid-cols-3'}`}>
+              {course.images.map((imgFilename, idx) => (
+                <div
+                  key={idx}
+                  className="relative group rounded-lg overflow-hidden border border-gray-200 dark:border-zinc-700 cursor-pointer hover:border-cyan-500/30 transition-all"
+                  onClick={() => setLightboxImage(`${API}/images/${imgFilename}`)}
+                >
+                  <img
+                    src={`${API}/images/${imgFilename}`}
+                    alt={`Illustration ${idx + 1} - ${course.title}`}
+                    className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
+                    loading="lazy"
+                  />
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center">
+                    <ZoomIn className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Lightbox for full-size image */}
+      {lightboxImage && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+          onClick={() => setLightboxImage(null)}
+        >
+          <button
+            onClick={() => setLightboxImage(null)}
+            className="absolute top-4 right-4 text-white/80 hover:text-white bg-black/40 rounded-full p-2 transition-colors"
+          >
+            <X className="w-6 h-6" />
+          </button>
+          <img
+            src={lightboxImage}
+            alt="Illustration agrandie"
+            className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
       )}
 
       {/* Course Content */}

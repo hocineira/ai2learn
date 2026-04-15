@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import {
   BookOpen, Save, ArrowLeft, Upload, Trash2, Plus, Video,
   Target, ListChecks, Clock, Monitor, Loader2, FileVideo, CheckCircle2,
-  GraduationCap, Shield, Link2
+  GraduationCap, Shield, Link2, ImageIcon
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -32,11 +32,14 @@ export default function CourseCreatePage() {
   const [formation, setFormation] = useState(activeFormation || 'bts-sio-sisr');
   const [category, setCategory] = useState('');
   const [videoFilename, setVideoFilename] = useState(null);
+  const [images, setImages] = useState([]);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [saving, setSaving] = useState(false);
   const [existingCourse, setExistingCourse] = useState(null);
   const fileInputRef = useRef(null);
+  const imageInputRef = useRef(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -76,6 +79,7 @@ export default function CourseCreatePage() {
         setPrerequisites(res.data.prerequisites?.length > 0 ? res.data.prerequisites : ['']);
         setDurationEstimate(res.data.duration_estimate || '');
         setVideoFilename(res.data.video_filename || null);
+        setImages(res.data.images || []);
         if (res.data.formation) setFormation(res.data.formation);
         if (res.data.category) setCategory(res.data.category);
       } catch {
@@ -100,6 +104,7 @@ export default function CourseCreatePage() {
         setPrerequisites(res.data.prerequisites?.length > 0 ? res.data.prerequisites : ['']);
         setDurationEstimate(res.data.duration_estimate || '');
         setVideoFilename(res.data.video_filename || null);
+        setImages(res.data.images || []);
         if (res.data.exercise_id) setSelectedExercise(res.data.exercise_id);
         if (res.data.formation) setFormation(res.data.formation);
         if (res.data.category) setCategory(res.data.category);
@@ -149,6 +154,45 @@ export default function CourseCreatePage() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  const handleImageUpload = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    
+    setUploadingImage(true);
+    const newImages = [...images];
+    
+    for (const file of files) {
+      if (!file.type.startsWith('image/')) {
+        toast.error(`"${file.name}" n'est pas une image`);
+        continue;
+      }
+      
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      try {
+        const res = await axios.post(`${API}/upload/image`, formData, {
+          headers: {
+            ...getAuthHeaders(),
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+        newImages.push(res.data.filename);
+        toast.success(`Image "${file.name}" uploadee`);
+      } catch (err) {
+        toast.error(err.response?.data?.detail || `Erreur upload "${file.name}"`);
+      }
+    }
+    
+    setImages(newImages);
+    setUploadingImage(false);
+    if (imageInputRef.current) imageInputRef.current.value = '';
+  };
+
+  const removeImage = (index) => {
+    setImages(images.filter((_, i) => i !== index));
+  };
+
   const addObjective = () => setObjectives([...objectives, '']);
   const removeObjective = (i) => setObjectives(objectives.filter((_, idx) => idx !== i));
   const updateObjective = (i, val) => {
@@ -179,6 +223,7 @@ export default function CourseCreatePage() {
         title: title.trim(),
         content: content.trim(),
         video_filename: videoFilename,
+        images: images,
         objectives: objectives.filter(o => o.trim()),
         prerequisites: prerequisites.filter(p => p.trim()),
         duration_estimate: durationEstimate.trim() || null,
@@ -398,6 +443,85 @@ export default function CourseCreatePage() {
                 )}
               </label>
             </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Images d'illustration */}
+      <Card className="bg-white/90 dark:bg-zinc-900/50 backdrop-blur-md border-gray-200 dark:border-zinc-800 shadow-sm dark:shadow-none">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm flex items-center gap-2 text-emerald-500 dark:text-emerald-400" style={{ fontFamily: 'Space Grotesk' }}>
+            <ImageIcon className="w-4 h-4" /> Images d'illustration
+            <Badge className="bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-zinc-500 border-gray-300 dark:border-zinc-700 text-[10px] ml-2">Optionnel</Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Display existing images */}
+          {images.length > 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {images.map((imgFilename, idx) => (
+                <div key={idx} className="relative group rounded-lg overflow-hidden border border-gray-200 dark:border-zinc-700 bg-gray-100 dark:bg-zinc-800/50">
+                  <img
+                    src={`${API}/images/${imgFilename}`}
+                    alt={`Illustration ${idx + 1}`}
+                    className="w-full h-32 object-cover"
+                  />
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="opacity-0 group-hover:opacity-100 text-white bg-red-500/80 hover:bg-red-600 transition-all"
+                      onClick={() => removeImage(idx)}
+                    >
+                      <Trash2 className="w-4 h-4 mr-1" /> Supprimer
+                    </Button>
+                  </div>
+                  <div className="absolute top-1 left-1">
+                    <Badge className="bg-black/60 text-white border-0 text-[10px]">{idx + 1}</Badge>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          
+          {/* Upload zone */}
+          <div className="relative">
+            <input
+              ref={imageInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml"
+              onChange={handleImageUpload}
+              className="hidden"
+              id="image-upload"
+              multiple
+            />
+            <label
+              htmlFor="image-upload"
+              className={`flex flex-col items-center gap-3 p-6 border-2 border-dashed ${uploadingImage ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-gray-300 dark:border-zinc-700 hover:border-emerald-500/30'} rounded-lg cursor-pointer transition-all`}
+            >
+              {uploadingImage ? (
+                <>
+                  <Loader2 className="w-8 h-8 text-emerald-400 animate-spin" />
+                  <span className="text-sm text-emerald-400">Upload en cours...</span>
+                </>
+              ) : (
+                <>
+                  <ImageIcon className="w-8 h-8 text-gray-500 dark:text-zinc-500" />
+                  <span className="text-sm text-gray-500 dark:text-zinc-400">
+                    Cliquez pour ajouter des images d'illustration
+                  </span>
+                  <span className="text-xs text-gray-400 dark:text-zinc-600">
+                    JPEG, PNG, GIF, WebP, SVG - Selection multiple possible
+                  </span>
+                </>
+              )}
+            </label>
+          </div>
+          
+          {images.length > 0 && (
+            <p className="text-xs text-emerald-500 dark:text-emerald-400 flex items-center gap-1">
+              <CheckCircle2 className="w-3 h-3" /> {images.length} image{images.length > 1 ? 's' : ''} ajoutee{images.length > 1 ? 's' : ''}
+            </p>
           )}
         </CardContent>
       </Card>

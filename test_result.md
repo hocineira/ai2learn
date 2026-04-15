@@ -150,6 +150,51 @@ backend:
           agent: "testing"
           comment: "✅ VERIFIED: All video endpoints working correctly. Tested: POST /api/upload/video (200) with multipart form data, GET /api/videos/{filename} (200) serving video files, GET /api/videos (200) listing uploaded videos. Proper auth validation - only admin/formateur can upload and list videos, students get 403. Video upload saves files to backend/uploads/videos/ directory with unique UUID filenames. File serving works with correct content-type headers."
 
+  - task: "Image upload endpoint"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "main"
+          comment: "Added POST /api/upload/image (multipart form, saves to backend/uploads/images/), GET /api/images/{filename} (FileResponse), DELETE /api/images/{filename}. Supports JPEG, PNG, GIF, WebP, SVG."
+        - working: true
+          agent: "testing"
+          comment: "✅ VERIFIED: All image upload endpoints working correctly. Tested: POST /api/upload/image (200) with multipart form data for admin and formateur, GET /api/images/{filename} (200) serving image files, DELETE /api/images/{filename} (200) deleting images. Proper auth validation - only admin/formateur can upload and delete images, students get 403. Image upload saves files to backend/uploads/images/ directory with unique UUID filenames. File serving works with correct content-type headers."
+
+  - task: "Course images field"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "main"
+          comment: "Added 'images' field (List[str]) to CourseCreate and CourseUpdate models. Images stored as list of filenames in course document. Create, update and delete course endpoints handle images. Delete course also cleans up image files."
+        - working: true
+          agent: "testing"
+          comment: "✅ VERIFIED: Course CRUD with images field working correctly. Tested: POST /api/courses (201) with images field containing list of filenames, GET /api/courses/{id} (200) returning images field, PUT /api/courses/{id} (200) updating images field, GET /api/courses (200) listing courses with images field present. Course model correctly handles images as List[str]. Course creation, update, and retrieval all properly handle the images field. Images field is properly returned in all course endpoints."
+
+  - task: "LLM correction fix - updated model names and fallback"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "main"
+          comment: "Updated Google Gemini model names from obsolete gemini-1.5-pro/flash to gemini-2.5-flash, gemini-2.0-flash, gemini-2.0-flash-lite. Added fallback system: tries user's DB key first (Google or Emergent), then falls back to .env Emergent key. Better error messages."
+        - working: true
+          agent: "testing"
+          comment: "✅ VERIFIED: LLM settings endpoint working correctly. Tested: GET /api/settings (200) returning llm_provider and llm_active fields correctly, PUT /api/settings (200) with llm_key updating settings successfully. .env EMERGENT_LLM_KEY properly detected as 'emergent' provider with active status. Settings endpoint correctly restricted to admin only - students get 403. LLM key can be set and retrieved with proper masking. Fallback system working with .env key detected and active."
+
   - task: "Charts data endpoint /api/stats/charts"
     implemented: true
     working: true
@@ -242,14 +287,16 @@ test_plan:
   current_focus: []
   stuck_tasks: []
   test_all: false
-  test_priority: "sequential"
+  test_priority: "high_first"
 
 agent_communication:
     - agent: "main"
-      message: "UPDATED: Exercise lab is now optional when creating a course. Added CourseViewPage for standalone courses. Updated CourseCreatePage, CoursesListPage, backend endpoints. Please test ALL frontend pages: login, dashboard, courses list, course create (with and without lab), course view, labs list, exercises, etc. Test credentials: admin/admin123, formateur/formateur123, etudiant1/etudiant123."
+      message: "NEW FEATURES ADDED: 1) Image upload support for courses - POST /api/upload/image, GET /api/images/{filename}, DELETE /api/images/{filename}. 2) Course model now has 'images' field (list of filenames). 3) LLM correction fix - updated Gemini models to current valid ones (gemini-2.5-flash, gemini-2.0-flash, gemini-2.0-flash-lite) + fallback to Emergent key. Test credentials: admin@netbfrs.fr/admin123, formateur@netbfrs.fr/formateur123. Please test: image upload/serve/delete, course CRUD with images field, and LLM settings endpoint."
     - agent: "testing"
       message: "✅ COMPREHENSIVE TESTING COMPLETED - ALL TESTS PASSED. Tested all critical flows: (1) Login flow for admin, student, formateur - all working. (2) Admin dashboard - all elements present, sidebar navigation complete. (3) Courses list page - working with empty state and course display. (4) Course create page - all form elements present (title required, formation/category selectors, optional exercise lab with 'Optionnel' badge, video upload, objectives, prerequisites, duration, content). (5) Successfully created standalone course without lab. (6) Course appears in list with 'Cours independant (pas de lab associe)' badge. (7) Course view page - loads correctly, NO 'Demarrer le Lab' button for standalone courses (correct behavior). (8) Labs and exercises pages working. (9) Student can access all pages and see courses. (10) Formateur can access course create page and has 'Cours' in sidebar. NO CRITICAL ISSUES FOUND. All features working as expected."
     - agent: "main"
       message: "Added comprehensive LIGHT/DARK theme system. ThemeContext provides theme state with localStorage persistence. Theme toggle button in sidebar header (data-testid='theme-toggle') with Moon/Sun icons. All pages support both themes with proper CSS variables. Please test theme functionality across all pages and user roles."
     - agent: "testing"
       message: "✅ LIGHT/DARK THEME SYSTEM FULLY TESTED - ALL TESTS PASSED. Comprehensive testing completed covering all critical flows: (1) Login page loads in LIGHT mode by default with white/light gray background. (2) Theme toggle button present in sidebar header next to AI2Lean logo with correct icons (Moon in light, Sun in dark). (3) Theme switching works perfectly - dark mode applies 'dark' class to html, changes background to #09090b, text to light colors. (4) Theme persists in localStorage and survives page navigation and refresh. (5) All pages tested in both themes: dashboard, courses, exercises, labs, users, tracking, submissions, results. (6) All user roles (admin, formateur, student) can access and use theme toggle. (7) Visual quality excellent in both modes - readable text, proper card styling, working gradients and accent colors. (8) No console errors or failed requests. NO CRITICAL ISSUES FOUND. Theme system is production-ready."
+    - agent: "testing"
+      message: "✅ NEW FEATURES COMPREHENSIVE TESTING COMPLETED - ALL TESTS PASSED. Tested all newly added features: (1) IMAGE UPLOAD ENDPOINT: POST /api/upload/image working for admin/formateur (200), students correctly denied (403). GET /api/images/{filename} serving images correctly. DELETE /api/images/{filename} working for admin/formateur. Files saved with UUID filenames in backend/uploads/images/. (2) COURSE CRUD WITH IMAGES: Course model correctly handles 'images' field as List[str]. POST /api/courses with images field working (201). GET /api/courses/{id} returning images field correctly. PUT /api/courses/{id} updating images field correctly. GET /api/courses listing courses with images field present. (3) LLM SETTINGS ENDPOINT: GET /api/settings returning llm_provider='emergent' and llm_active=True correctly. PUT /api/settings updating LLM key successfully. .env EMERGENT_LLM_KEY properly detected. Admin-only access enforced (students get 403). ALL 18 TESTS PASSED. NO CRITICAL ISSUES FOUND. All new features working as expected."
