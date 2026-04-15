@@ -93,7 +93,7 @@ export default function SettingsPage() {
   if (loading) return <div className="th-text-muted text-center py-20">Chargement...</div>;
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6" data-testid="settings-page">
+    <div className="max-w-4xl mx-auto space-y-6" data-testid="settings-page">
       <div>
         <h1 className="text-3xl font-bold tracking-tight" style={{ fontFamily: 'Space Grotesk' }}>
           <span className="text-gradient">Parametres</span>

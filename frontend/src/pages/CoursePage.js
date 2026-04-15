@@ -79,7 +79,7 @@ export default function CoursePage() {
   const videoUrl = course.video_filename ? `${API}/videos/${course.video_filename}` : null;
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8 pb-12" data-testid="course-page">
+    <div className="max-w-6xl mx-auto space-y-8 pb-12" data-testid="course-page">
       {/* Back Button */}
       <Button variant="ghost" className="text-gray-500 dark:text-zinc-400 hover:text-cyan-400 -ml-3" onClick={() => navigate('/labs')}>
         <ArrowLeft className="w-4 h-4 mr-2" /> Retour aux labs

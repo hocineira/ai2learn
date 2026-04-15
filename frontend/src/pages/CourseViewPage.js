@@ -71,7 +71,7 @@ export default function CourseViewPage() {
   const hasLab = !!course.exercise_id && !!exercise;
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8 pb-12" data-testid="course-view-page">
+    <div className="max-w-6xl mx-auto space-y-8 pb-12" data-testid="course-view-page">
       {/* Back Button */}
       <Button variant="ghost" className="text-gray-500 dark:text-zinc-400 hover:text-cyan-400 -ml-3" onClick={() => navigate('/courses')}>
         <ArrowLeft className="w-4 h-4 mr-2" /> Retour aux cours

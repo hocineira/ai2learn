@@ -174,7 +174,7 @@ export const Sidebar = ({ children }) => {
       </aside>
 
       <main className={`flex-1 ${collapsed ? 'ml-16' : 'ml-64'} transition-all duration-300 min-h-screen`}>
-        <div className="p-6 md:p-8 max-w-7xl">{children}</div>
+        <div className="p-6 md:p-8 max-w-[1600px] mx-auto">{children}</div>
       </main>
     </div>
   );

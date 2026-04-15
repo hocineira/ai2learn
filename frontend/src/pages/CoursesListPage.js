@@ -71,7 +71,7 @@ export default function CoursesListPage() {
       </div>
 
       {courses.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {courses.map((course, i) => {
             const courseUrl = course.exercise_id ? `/courses/${course.exercise_id}` : `/courses/view/${course.id}`;
             const editUrl = course.exercise_id

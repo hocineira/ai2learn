@@ -286,7 +286,7 @@ export default function CourseCreatePage() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6" data-testid="course-create-page">
+    <div className="max-w-5xl mx-auto space-y-6" data-testid="course-create-page">
       <Button variant="ghost" className="text-gray-500 dark:text-zinc-400 hover:text-cyan-400 -ml-3" onClick={() => navigate('/courses')}>
         <ArrowLeft className="w-4 h-4 mr-2" /> Retour aux cours
       </Button>

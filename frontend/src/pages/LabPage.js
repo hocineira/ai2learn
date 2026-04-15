@@ -179,7 +179,7 @@ export default function LabPage() {
   if (!exercise) return null;
 
   return (
-    <div className="space-y-6 max-w-4xl" data-testid="lab-page">
+    <div className="space-y-6 max-w-6xl" data-testid="lab-page">
       <Button variant="ghost" className="text-gray-500 dark:text-zinc-400 hover:text-cyan-400 -ml-3" onClick={() => navigate('/labs')}>
         <ArrowLeft className="w-4 h-4 mr-2" /> Retour aux labs
       </Button>

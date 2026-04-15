@@ -84,7 +84,7 @@ export default function ExerciseCreate() {
   };
 
   return (
-    <div className="space-y-6 max-w-3xl" data-testid="exercise-create-page">
+    <div className="space-y-6 max-w-5xl" data-testid="exercise-create-page">
       <div>
         <h1 className="text-3xl font-bold tracking-tight" style={{ fontFamily: 'Space Grotesk' }}>
           <span className="text-gradient">Creer</span> un exercice
