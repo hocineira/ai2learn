@@ -34,15 +34,91 @@ api_router = APIRouter(prefix="/api")
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# Verifier si emergentintegrations est disponible
+# ─── LLM Provider Detection ───
+LLM_PROVIDER = None  # "emergent", "google", or None
+LLM_KEY = None
 HAS_EMERGENT_LLM = False
-if EMERGENT_LLM_KEY:
-    try:
+
+def detect_llm_provider(key: str):
+    """Detect LLM provider from API key format"""
+    if not key:
+        return None, False
+    if key.startswith("AIzaSy"):
+        return "google", True
+    if key.startswith("sk-emergent") or key.startswith("sk-"):
+        try:
+            from emergentintegrations.llm.chat import LlmChat, UserMessage
+            return "emergent", True
+        except ImportError:
+            logger.warning("emergentintegrations non installe - tentative Google genai")
+            return None, False
+    # Default: try google
+    return "google", True
+
+def init_llm():
+    global LLM_PROVIDER, LLM_KEY, HAS_EMERGENT_LLM, EMERGENT_LLM_KEY
+    key = EMERGENT_LLM_KEY
+    # Also check settings in sync way (will be overridden at first request)
+    if key:
+        provider, available = detect_llm_provider(key)
+        LLM_PROVIDER = provider
+        LLM_KEY = key
+        HAS_EMERGENT_LLM = available
+        logger.info(f"LLM Provider: {provider or 'aucun'} - {'actif' if available else 'inactif'}")
+    else:
+        logger.info("Aucune cle LLM configuree - correction IA desactivee")
+
+init_llm()
+
+async def call_llm(system_message: str, user_message: str, session_id: str = "grading") -> str:
+    """Universal LLM call - supports Emergent and Google Gemini"""
+    global LLM_PROVIDER, LLM_KEY
+    
+    # Try to load key from DB settings if not set
+    if not LLM_KEY:
+        settings = await db.settings.find_one({"key": "global"}, {"_id": 0})
+        if settings and settings.get("llm_key"):
+            LLM_KEY = settings["llm_key"]
+            provider, _ = detect_llm_provider(LLM_KEY)
+            LLM_PROVIDER = provider
+    
+    if not LLM_KEY:
+        raise Exception("Aucune cle LLM configuree")
+    
+    if LLM_PROVIDER == "google":
+        import google.generativeai as genai
+        genai.configure(api_key=LLM_KEY)
+        model = genai.GenerativeModel(
+            model_name="gemini-2.0-flash",
+            system_instruction=system_message
+        )
+        response = model.generate_content(user_message)
+        return response.text
+    
+    elif LLM_PROVIDER == "emergent":
         from emergentintegrations.llm.chat import LlmChat, UserMessage
-        HAS_EMERGENT_LLM = True
-        logger.info("emergentintegrations disponible - correction IA activee")
-    except ImportError:
-        logger.warning("emergentintegrations non installe - correction IA desactivee")
+        chat = LlmChat(
+            api_key=LLM_KEY,
+            session_id=session_id,
+            system_message=system_message
+        )
+        chat.with_model("openai", "gpt-5.2")
+        response = await chat.send_message(UserMessage(text=user_message))
+        return response
+    
+    else:
+        # Fallback: try Google
+        try:
+            import google.generativeai as genai
+            genai.configure(api_key=LLM_KEY)
+            model = genai.GenerativeModel(
+                model_name="gemini-2.0-flash",
+                system_instruction=system_message
+            )
+            response = model.generate_content(user_message)
+            return response.text
+        except Exception as e:
+            raise Exception(f"LLM non disponible: {e}")
 
 # ─── Formations & Categories ───
 
@@ -465,10 +541,20 @@ def _get_question_max_pts(exercise, question_id):
     return q.get("points", 1) if q else 1
 
 async def grade_submission_with_ai(submission_id: str):
-    if not HAS_EMERGENT_LLM:
-        logger.warning("Correction IA impossible: emergentintegrations non installe")
+    global LLM_KEY, LLM_PROVIDER
+    
+    # Check if LLM is available
+    if not LLM_KEY:
+        # Try loading from DB
+        settings = await db.settings.find_one({"key": "global"}, {"_id": 0})
+        if settings and settings.get("llm_key"):
+            LLM_KEY = settings["llm_key"]
+            provider, _ = detect_llm_provider(LLM_KEY)
+            LLM_PROVIDER = provider
+    
+    if not LLM_KEY:
+        logger.warning("Correction IA impossible: aucune cle LLM")
         return
-    from emergentintegrations.llm.chat import LlmChat, UserMessage
     
     submission = await db.submissions.find_one({"id": submission_id}, {"_id": 0})
     if not submission:
@@ -565,14 +651,17 @@ async def grade_submission_with_ai(submission_id: str):
         + vm_context
     )
     
-    chat = LlmChat(
-        api_key=EMERGENT_LLM_KEY,
-        session_id=f"grading-{submission_id}",
-        system_message=f"Tu es un correcteur expert de la formation {formation_name} a l'academie NETBFRS. Tu notes avec precision et bienveillance. Reponds uniquement en JSON valide."
-    )
-    chat.with_model("openai", "gpt-5.2")
+    system_msg = f"Tu es un correcteur expert de la formation {formation_name} a l'academie NETBFRS. Tu notes avec precision et bienveillance. Reponds uniquement en JSON valide."
     
-    response = await chat.send_message(UserMessage(text=grading_prompt))
+    try:
+        response = await call_llm(system_msg, grading_prompt, session_id=f"grading-{submission_id}")
+    except Exception as e:
+        logger.error(f"LLM call failed: {e}")
+        await db.submissions.update_one(
+            {"id": submission_id},
+            {"$set": {"ai_feedback": f"Erreur correction IA: {str(e)[:100]}", "graded": False}}
+        )
+        return
     
     try:
         response_text = response.strip()
@@ -684,8 +773,11 @@ async def grade_submission_with_ai(submission_id: str):
 
 @api_router.post("/grade/{submission_id}")
 async def trigger_grading(submission_id: str, current_user: dict = Depends(auth_dependency)):
-    if not EMERGENT_LLM_KEY or not HAS_EMERGENT_LLM:
-        raise HTTPException(status_code=500, detail="Correction IA non disponible (cle ou module manquant)")
+    if not LLM_KEY and not EMERGENT_LLM_KEY:
+        # Try loading from DB
+        settings = await db.settings.find_one({"key": "global"}, {"_id": 0})
+        if not settings or not settings.get("llm_key"):
+            raise HTTPException(status_code=500, detail="Correction IA non disponible (aucune cle configuree). Allez dans Parametres pour ajouter une cle.")
     
     # Students can grade their own lab submissions
     submission = await db.submissions.find_one({"id": submission_id}, {"_id": 0})
@@ -1041,25 +1133,28 @@ async def get_settings(current_user: dict = Depends(auth_dependency)):
     if current_user["role"] != "admin":
         raise HTTPException(status_code=403, detail="Admin uniquement")
     settings = await db.settings.find_one({"key": "global"}, {"_id": 0})
-    if not settings:
-        settings = {"key": "global", "llm_key_set": bool(EMERGENT_LLM_KEY), "llm_key_masked": ""}
-    else:
-        # Mask the key for display
+    
+    result = {"key": "global", "llm_key_set": False, "llm_key_masked": "", "llm_provider": LLM_PROVIDER or "aucun", "llm_active": bool(LLM_KEY)}
+    
+    if settings:
         key_val = settings.get("llm_key", "")
         if key_val:
-            settings["llm_key_masked"] = key_val[:8] + "..." + key_val[-4:] if len(key_val) > 12 else "****"
-        else:
-            settings["llm_key_masked"] = ""
-        settings["llm_key_set"] = bool(key_val)
-        settings.pop("llm_key", None)
-    return settings
+            result["llm_key_masked"] = key_val[:8] + "..." + key_val[-4:] if len(key_val) > 12 else "****"
+            result["llm_key_set"] = True
+            provider, _ = detect_llm_provider(key_val)
+            result["llm_provider"] = provider or "inconnu"
+    elif LLM_KEY:
+        result["llm_key_set"] = True
+        result["llm_key_masked"] = LLM_KEY[:8] + "..." + LLM_KEY[-4:] if len(LLM_KEY) > 12 else "****"
+        result["llm_provider"] = LLM_PROVIDER or "inconnu"
+    return result
 
 class SettingsUpdate(BaseModel):
     llm_key: Optional[str] = None
 
 @api_router.put("/settings")
 async def update_settings(data: SettingsUpdate, current_user: dict = Depends(auth_dependency)):
-    global EMERGENT_LLM_KEY, HAS_EMERGENT_LLM
+    global EMERGENT_LLM_KEY, HAS_EMERGENT_LLM, LLM_KEY, LLM_PROVIDER
     if current_user["role"] != "admin":
         raise HTTPException(status_code=403, detail="Admin uniquement")
     
@@ -1067,23 +1162,19 @@ async def update_settings(data: SettingsUpdate, current_user: dict = Depends(aut
     
     if data.llm_key is not None:
         update["llm_key"] = data.llm_key
-        # Update runtime variable
-        EMERGENT_LLM_KEY = data.llm_key if data.llm_key else None
-        os.environ['EMERGENT_LLM_KEY'] = data.llm_key or ""
-        # Re-check if module is available
-        if EMERGENT_LLM_KEY:
-            try:
-                from emergentintegrations.llm.chat import LlmChat, UserMessage
-                HAS_EMERGENT_LLM = True
-                logger.info("Cle LLM mise a jour - correction IA activee")
-            except ImportError:
-                HAS_EMERGENT_LLM = False
-                logger.warning("emergentintegrations non installe")
+        LLM_KEY = data.llm_key if data.llm_key else None
+        EMERGENT_LLM_KEY = LLM_KEY
+        if LLM_KEY:
+            provider, available = detect_llm_provider(LLM_KEY)
+            LLM_PROVIDER = provider
+            HAS_EMERGENT_LLM = available
+            logger.info(f"Cle LLM mise a jour - Provider: {provider}, Actif: {available}")
         else:
+            LLM_PROVIDER = None
             HAS_EMERGENT_LLM = False
     
     await db.settings.update_one({"key": "global"}, {"$set": update}, upsert=True)
-    return {"message": "Parametres mis a jour", "llm_active": HAS_EMERGENT_LLM}
+    return {"message": "Parametres mis a jour", "llm_active": bool(LLM_KEY), "llm_provider": LLM_PROVIDER or "aucun"}
 
 @api_router.put("/profile")
 async def update_profile(current_user: dict = Depends(auth_dependency)):

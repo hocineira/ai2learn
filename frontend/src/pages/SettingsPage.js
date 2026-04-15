@@ -23,12 +23,17 @@ export default function SettingsPage() {
   const [newPwd, setNewPwd] = useState('');
   const [savingProfile, setSavingProfile] = useState(false);
 
+  const [llmProvider, setLlmProvider] = useState('');
+  const [llmActive, setLlmActive] = useState(false);
+
   useEffect(() => {
     const fetchSettings = async () => {
       try {
         const res = await axios.get(`${API}/settings`, { headers: getAuthHeaders() });
         setLlmKeySet(res.data.llm_key_set);
         setLlmKeyMasked(res.data.llm_key_masked || '');
+        setLlmProvider(res.data.llm_provider || 'aucun');
+        setLlmActive(res.data.llm_active || false);
       } catch {}
       setLoading(false);
     };
@@ -40,9 +45,13 @@ export default function SettingsPage() {
     setSavingKey(true);
     try {
       const res = await axios.put(`${API}/settings`, { llm_key: llmKey }, { headers: getAuthHeaders() });
-      toast.success(res.data.llm_active ? 'Cle LLM sauvegardee - Correction IA activee' : 'Cle sauvegardee (module IA non installe)');
+      const provider = res.data.llm_provider || 'inconnu';
+      const providerLabel = provider === 'google' ? 'Google Gemini' : provider === 'emergent' ? 'Emergent/OpenAI' : provider;
+      toast.success(res.data.llm_active ? `Cle sauvegardee - Provider: ${providerLabel}` : 'Cle sauvegardee (provider non reconnu)');
       setLlmKeySet(!!llmKey);
       setLlmKeyMasked(llmKey ? llmKey.slice(0, 8) + '...' + llmKey.slice(-4) : '');
+      setLlmProvider(provider);
+      setLlmActive(res.data.llm_active);
       setLlmKey('');
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Erreur');
@@ -135,7 +144,7 @@ export default function SettingsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
               <span className="text-sm th-text-secondary">Statut :</span>
               {llmKeySet ? (
                 <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30">
@@ -144,6 +153,11 @@ export default function SettingsPage() {
               ) : (
                 <Badge className="bg-red-500/15 text-red-600 dark:text-red-400 border-red-500/30">
                   <XCircle className="w-3 h-3 mr-1" /> Non configuree
+                </Badge>
+              )}
+              {llmKeySet && llmProvider && (
+                <Badge className="bg-violet-500/15 text-violet-600 dark:text-violet-400 border-violet-500/30">
+                  {llmProvider === 'google' ? 'Google Gemini' : llmProvider === 'emergent' ? 'Emergent/OpenAI' : llmProvider}
                 </Badge>
               )}
             </div>
@@ -183,8 +197,9 @@ export default function SettingsPage() {
             )}
 
             <p className="text-xs th-text-faint">
-              La cle Emergent LLM permet la correction automatique des questions ouvertes par GPT-5.2.
-              Obtenez votre cle sur le profil Emergent.
+              Supports : <strong>Google Gemini</strong> (cle AIzaSy...) ou <strong>Emergent/OpenAI</strong> (cle sk-emergent-...).
+              Le provider est detecte automatiquement.
+              Pour Google Gemini : <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer" className="text-cyan-500 underline">obtenir une cle gratuite</a>.
             </p>
           </CardContent>
         </Card>
