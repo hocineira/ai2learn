@@ -21,16 +21,22 @@ Plateforme multi-formations de formation IT avec suivi temps reel, exercices int
 - [x] Dashboard admin avec vue multi-formations
 - [x] Branding AI2Lean + logo NETBFRS
 - [x] Script deploiement VPS Debian 12 + procedure
+- [x] Graphiques de progression (recharts)
+- [x] Export resultats (CSV/PDF)
+- [x] **Pages de cours avant chaque lab** (texte + video MP4 + bouton Demarrer le Lab)
+- [x] **Upload/lecture de videos MP4** dans les cours
+- [x] **Script de deploiement automatise Debian 12** + Guacamole 192.168.1.202
+- [x] **Navigation Cours** dans la sidebar pour tous les roles
 
 ## Backlog
 ### P0
-- Exercices lab VM (lien Proxmox + upload resultat)
-- Edition d'exercices existants
+- Exercices lab VM (lien Proxmox + upload resultat) ✅
+- Edition d'exercices existants ✅
 
 ### P1
-- Graphiques de progression (recharts)
-- Notifications temps reel (WebSocket)
-- Export resultats (CSV/PDF)
+- Graphiques de progression (recharts) ✅
+- Export resultats (CSV/PDF) ✅
+- Pages de cours avant labs (texte + video MP4) ✅
 
 ### P2
 - Progression par competences referentiel
