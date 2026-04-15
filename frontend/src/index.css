@@ -272,6 +272,15 @@ h1, h2, h3, h4, h5, h6 {
   animation: typing 2s steps(40, end);
 }
 
+/* Hide external badges */
+#emergent-badge,
+a[href*="emergent.sh"][style*="position: fixed"] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
 /* Theme transition */
 *, *::before, *::after {
   transition-property: background-color, border-color, color;
