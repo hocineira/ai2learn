@@ -1,12 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, BookOpen, Users, BarChart3, LogOut, PlusCircle, ClipboardList, Settings, ChevronLeft, ChevronRight, GraduationCap, Shield, Monitor, Video, Sun, Moon } from 'lucide-react';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { LayoutDashboard, BookOpen, Users, BarChart3, LogOut, PlusCircle, ClipboardList, Settings, ChevronLeft, ChevronRight, GraduationCap, Shield, Monitor, Video, Sun, Moon, Menu, X, Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import NotificationBell from '@/components/NotificationBell';
 
 const LOGO_URL = 'https://customer-assets.emergentagent.com/job_guac-edu-platform/artifacts/i1bnge8a_netbfrs_logo.png';
 
@@ -21,7 +22,14 @@ export const Sidebar = ({ children }) => {
   const { user, logout, activeFormation, switchFormation } = useAuth();
   const { isDark, toggleTheme } = useTheme();
   const navigate = useNavigate();
+  const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  // Close mobile menu on navigation
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [location.pathname]);
 
   const handleLogout = () => { logout(); navigate('/login'); };
 
@@ -60,7 +68,25 @@ export const Sidebar = ({ children }) => {
 
   return (
     <div className="flex min-h-screen th-page">
-      <aside data-testid="sidebar" className={`fixed left-0 top-0 h-full ${collapsed ? 'w-16' : 'w-64'} th-sidebar border-r flex flex-col z-50 transition-all duration-300`}>
+      {/* Mobile hamburger button */}
+      <button
+        onClick={() => setMobileOpen(!mobileOpen)}
+        className="fixed top-3 left-3 z-[60] lg:hidden w-10 h-10 rounded-lg bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 flex items-center justify-center shadow-lg"
+        data-testid="mobile-menu-btn"
+      >
+        {mobileOpen ? <X className="w-5 h-5 th-text" /> : <Menu className="w-5 h-5 th-text" />}
+      </button>
+
+      {/* Mobile overlay */}
+      {mobileOpen && (
+        <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setMobileOpen(false)} />
+      )}
+
+      <aside data-testid="sidebar" className={`
+        fixed left-0 top-0 h-full th-sidebar border-r flex flex-col z-50 transition-all duration-300
+        ${collapsed ? 'w-16' : 'w-64'}
+        ${mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+      `}>
         {/* Logo */}
         <div className={`p-3 border-b flex items-center ${collapsed ? 'justify-center' : 'gap-3'}`} style={{ borderColor: 'var(--sidebar-border)' }}>
           <img src={LOGO_URL} alt="NETBFRS" className="h-8 w-auto rounded flex-shrink-0" />
@@ -72,20 +98,23 @@ export const Sidebar = ({ children }) => {
               <p className="text-[9px] th-text-faint -mt-0.5">NETBFRS Academy</p>
             </div>
           )}
-          {/* Theme toggle in header */}
+          {/* Theme toggle + Notifications in header */}
           {!collapsed && (
-            <button
-              data-testid="theme-toggle"
-              onClick={toggleTheme}
-              className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors hover:bg-gray-200 dark:hover:bg-zinc-800"
-              title={isDark ? 'Theme clair' : 'Theme sombre'}
-            >
-              {isDark ? (
-                <Sun className="w-4 h-4 text-amber-400" />
-              ) : (
-                <Moon className="w-4 h-4 text-slate-500" />
-              )}
-            </button>
+            <div className="flex items-center gap-1">
+              <NotificationBell />
+              <button
+                data-testid="theme-toggle"
+                onClick={toggleTheme}
+                className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors hover:bg-gray-200 dark:hover:bg-zinc-800"
+                title={isDark ? 'Theme clair' : 'Theme sombre'}
+              >
+                {isDark ? (
+                  <Sun className="w-4 h-4 text-amber-400" />
+                ) : (
+                  <Moon className="w-4 h-4 text-slate-500" />
+                )}
+              </button>
+            </div>
           )}
         </div>
 
@@ -173,8 +202,8 @@ export const Sidebar = ({ children }) => {
         </button>
       </aside>
 
-      <main className={`flex-1 ${collapsed ? 'ml-16' : 'ml-64'} transition-all duration-300 min-h-screen`}>
-        <div className="p-6 md:p-8 max-w-[1600px] mx-auto">{children}</div>
+      <main className={`flex-1 transition-all duration-300 min-h-screen ${collapsed ? 'lg:ml-16' : 'lg:ml-64'} ml-0`}>
+        <div className="p-4 pt-16 lg:pt-8 md:p-8 max-w-[1600px] mx-auto">{children}</div>
       </main>
     </div>
   );

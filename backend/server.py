@@ -765,6 +765,20 @@ async def grade_submission_with_ai(submission_id: str):
                 "graded": True
             }}
         )
+        
+        # Send notification to student
+        try:
+            score_msg = f"{score_20}/20" if score_20 is not None else "en cours"
+            await create_notification(
+                user_id=submission["student_id"],
+                title="Correction terminee",
+                message=f"Votre exercice '{exercise.get('title', '')}' a ete corrige. Note: {score_msg}",
+                notif_type="grading",
+                link=f"/results/{submission_id}"
+            )
+        except Exception as notif_err:
+            logger.warning(f"Failed to create notification: {notif_err}")
+        
     except (json.JSONDecodeError, KeyError) as e:
         logger.error(f"Failed to parse AI response: {e}")
         await db.submissions.update_one(
@@ -2026,6 +2040,177 @@ async def get_active_labs(current_user: dict = Depends(auth_dependency)):
         raise HTTPException(status_code=403, detail="Acces refuse")
     labs = await db.labs.find({"status": "running"}, {"_id": 0}).to_list(100)
     return labs
+
+
+# ─── Notifications ───
+
+@api_router.get("/notifications")
+async def get_notifications(current_user: dict = Depends(auth_dependency)):
+    """Get notifications for current user"""
+    notifs = await db.notifications.find(
+        {"user_id": current_user["id"]},
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(50)
+    return notifs
+
+@api_router.put("/notifications/{notif_id}/read")
+async def mark_notification_read(notif_id: str, current_user: dict = Depends(auth_dependency)):
+    result = await db.notifications.update_one(
+        {"id": notif_id, "user_id": current_user["id"]},
+        {"$set": {"read": True}}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Notification non trouvee")
+    return {"message": "Notification lue"}
+
+@api_router.put("/notifications/read-all")
+async def mark_all_notifications_read(current_user: dict = Depends(auth_dependency)):
+    await db.notifications.update_many(
+        {"user_id": current_user["id"], "read": False},
+        {"$set": {"read": True}}
+    )
+    return {"message": "Toutes les notifications marquees comme lues"}
+
+@api_router.get("/notifications/unread-count")
+async def get_unread_count(current_user: dict = Depends(auth_dependency)):
+    count = await db.notifications.count_documents({"user_id": current_user["id"], "read": False})
+    return {"count": count}
+
+async def create_notification(user_id: str, title: str, message: str, notif_type: str = "info", link: str = None):
+    """Helper to create a notification"""
+    notif_doc = {
+        "id": str(uuid.uuid4()),
+        "user_id": user_id,
+        "title": title,
+        "message": message,
+        "type": notif_type,
+        "link": link,
+        "read": False,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.notifications.insert_one(notif_doc)
+    return notif_doc
+
+# ─── Enhanced Student Stats ───
+
+@api_router.get("/stats/student-detailed")
+async def get_student_detailed_stats(current_user: dict = Depends(auth_dependency)):
+    """Get detailed student stats including streaks, level, badges"""
+    if current_user["role"] != "etudiant":
+        raise HTTPException(status_code=403, detail="Etudiants uniquement")
+    
+    student_id = current_user["id"]
+    formation = current_user.get("formation", "bts-sio-sisr")
+    
+    # Get all submissions
+    submissions = await db.submissions.find(
+        {"student_id": student_id},
+        {"_id": 0}
+    ).sort("submitted_at", -1).to_list(1000)
+    
+    # Get all exercises for the formation
+    exercises = await db.exercises.find(
+        {"formation": formation},
+        {"_id": 0, "id": 1, "title": 1, "category": 1}
+    ).to_list(1000)
+    
+    total_exercises = len(exercises)
+    completed_ids = set()
+    total_score = 0
+    total_max = 0
+    graded_count = 0
+    best_score = 0
+    worst_score = 20
+    scores_list = []
+    
+    for sub in submissions:
+        completed_ids.add(sub["exercise_id"])
+        if sub.get("graded") and sub.get("max_score", 0) > 0:
+            score_20 = round((sub["score"] / sub["max_score"]) * 20, 1) if sub.get("score_20") is None else sub["score_20"]
+            scores_list.append(score_20)
+            total_score += sub["score"]
+            total_max += sub["max_score"]
+            graded_count += 1
+            if score_20 > best_score:
+                best_score = score_20
+            if score_20 < worst_score:
+                worst_score = score_20
+    
+    completed_count = len(completed_ids)
+    avg_score_20 = round((total_score / max(total_max, 1)) * 20, 1)
+    completion_pct = round((completed_count / max(total_exercises, 1)) * 100)
+    
+    # Calculate streak (consecutive days with submissions)
+    streak = 0
+    if submissions:
+        from datetime import timedelta
+        today = datetime.now(timezone.utc).date()
+        dates = sorted(set(
+            datetime.fromisoformat(s["submitted_at"].replace("Z", "+00:00")).date()
+            for s in submissions if s.get("submitted_at")
+        ), reverse=True)
+        if dates and (today - dates[0]).days <= 1:
+            streak = 1
+            for i in range(1, len(dates)):
+                if (dates[i-1] - dates[i]).days <= 1:
+                    streak += 1
+                else:
+                    break
+    
+    # Calculate level (XP based)
+    xp = completed_count * 100 + graded_count * 50 + int(avg_score_20 * 10)
+    level = 1
+    xp_thresholds = [0, 200, 500, 1000, 2000, 3500, 5000, 7500, 10000]
+    for i, threshold in enumerate(xp_thresholds):
+        if xp >= threshold:
+            level = i + 1
+    next_level_xp = xp_thresholds[min(level, len(xp_thresholds)-1)]
+    prev_level_xp = xp_thresholds[min(level-1, len(xp_thresholds)-1)]
+    level_progress = round(((xp - prev_level_xp) / max(next_level_xp - prev_level_xp, 1)) * 100)
+    
+    level_names = ["Debutant", "Apprenti", "Intermediaire", "Avance", "Expert", "Maitre", "Legende", "Architecte", "Virtuose"]
+    level_name = level_names[min(level-1, len(level_names)-1)]
+    
+    # Generate badges
+    badges = []
+    if completed_count >= 1:
+        badges.append({"id": "first_step", "name": "Premier pas", "icon": "🎯", "desc": "Premier exercice complete"})
+    if completed_count >= 5:
+        badges.append({"id": "studious", "name": "Studieux", "icon": "📚", "desc": "5 exercices completes"})
+    if completed_count >= 10:
+        badges.append({"id": "dedicated", "name": "Dedie", "icon": "🏆", "desc": "10 exercices completes"})
+    if avg_score_20 >= 16:
+        badges.append({"id": "excellent", "name": "Excellent", "icon": "⭐", "desc": "Moyenne >= 16/20"})
+    if avg_score_20 >= 18:
+        badges.append({"id": "genius", "name": "Genie", "icon": "🧠", "desc": "Moyenne >= 18/20"})
+    if streak >= 3:
+        badges.append({"id": "streak3", "name": "En serie", "icon": "🔥", "desc": "3 jours consecutifs"})
+    if streak >= 7:
+        badges.append({"id": "streak7", "name": "Infatigable", "icon": "💪", "desc": "7 jours consecutifs"})
+    if best_score >= 19:
+        badges.append({"id": "perfect", "name": "Quasi-parfait", "icon": "💎", "desc": "Note >= 19/20"})
+    if completion_pct >= 100:
+        badges.append({"id": "complete", "name": "Completiste", "icon": "🎓", "desc": "Tous les exercices completes"})
+    
+    return {
+        "completed_exercises": completed_count,
+        "total_exercises": total_exercises,
+        "completion_pct": completion_pct,
+        "avg_score_20": avg_score_20,
+        "best_score": best_score if graded_count > 0 else 0,
+        "worst_score": worst_score if graded_count > 0 else 0,
+        "graded_count": graded_count,
+        "total_submissions": len(submissions),
+        "streak": streak,
+        "xp": xp,
+        "level": level,
+        "level_name": level_name,
+        "level_progress": level_progress,
+        "next_level_xp": next_level_xp,
+        "badges": badges,
+        "scores": scores_list[-20:],  # Last 20 scores
+    }
+
 
 
 # Include router and middleware
