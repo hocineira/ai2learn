@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   BookOpen, Play, PlusCircle, Monitor, Video, Clock,
-  Target, Trash2, Pencil, ChevronRight, GraduationCap
+  Target, Trash2, Pencil, ChevronRight, GraduationCap, ImageIcon
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -82,26 +82,56 @@ export default function CoursesListPage() {
             return (
             <Card
               key={course.id}
-              className="bg-white/90 dark:bg-zinc-900/50 backdrop-blur-md border-gray-200 dark:border-gray-200 dark:border-zinc-800 shadow-sm dark:shadow-none hover:border-cyan-500/30 transition-all cursor-pointer animate-fade-in-up group"
+              className="bg-white/90 dark:bg-zinc-900/50 backdrop-blur-md border-gray-200 dark:border-zinc-800 shadow-sm dark:shadow-none hover:border-cyan-500/30 transition-all cursor-pointer animate-fade-in-up group overflow-hidden"
               style={{ animationDelay: `${i * 0.05}s` }}
               onClick={() => navigate(courseUrl)}
               data-testid={`course-card-${course.id}`}
             >
-              <CardContent className="p-5">
-                <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-lg bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center flex-shrink-0 group-hover:bg-cyan-500/20 transition-colors">
-                    <BookOpen className="w-6 h-6 text-cyan-400" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-base font-semibold text-gray-800 dark:text-zinc-200 truncate mb-1" style={{ fontFamily: 'Space Grotesk' }}>
+              {/* Cover Image */}
+              {course.cover_image ? (
+                <div className="relative h-40 overflow-hidden">
+                  <img
+                    src={`${API}/images/${course.cover_image}`}
+                    alt={course.title}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
+                  <div className="absolute bottom-3 left-4 right-4">
+                    <h3 className="text-base font-semibold text-white truncate drop-shadow-lg" style={{ fontFamily: 'Space Grotesk' }}>
                       {course.title}
                     </h3>
                     {course.exercise_title ? (
-                      <p className="text-xs text-gray-500 dark:text-zinc-500 mb-2 flex items-center gap-1">
+                      <p className="text-xs text-white/70 flex items-center gap-1 mt-0.5">
                         <Monitor className="w-3 h-3" /> Lab: {course.exercise_title}
                       </p>
                     ) : (
-                      <p className="text-xs text-gray-400 dark:text-zinc-600 mb-2 italic">Cours independant (pas de lab associe)</p>
+                      <p className="text-xs text-white/50 italic mt-0.5">Cours independant</p>
+                    )}
+                  </div>
+                </div>
+              ) : null}
+              
+              <CardContent className={course.cover_image ? "p-4" : "p-5"}>
+                <div className="flex items-start gap-4">
+                  {!course.cover_image && (
+                    <div className="w-12 h-12 rounded-lg bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center flex-shrink-0 group-hover:bg-cyan-500/20 transition-colors">
+                      <BookOpen className="w-6 h-6 text-cyan-400" />
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    {!course.cover_image && (
+                      <>
+                        <h3 className="text-base font-semibold text-gray-800 dark:text-zinc-200 truncate mb-1" style={{ fontFamily: 'Space Grotesk' }}>
+                          {course.title}
+                        </h3>
+                        {course.exercise_title ? (
+                          <p className="text-xs text-gray-500 dark:text-zinc-500 mb-2 flex items-center gap-1">
+                            <Monitor className="w-3 h-3" /> Lab: {course.exercise_title}
+                          </p>
+                        ) : (
+                          <p className="text-xs text-gray-400 dark:text-zinc-600 mb-2 italic">Cours independant (pas de lab associe)</p>
+                        )}
+                      </>
                     )}
                     <div className="flex items-center gap-2 flex-wrap">
                       {course.exercise_id && (
@@ -112,6 +142,11 @@ export default function CoursesListPage() {
                       {course.video_filename && (
                         <Badge className="bg-violet-500/15 text-violet-400 border-violet-500/30 text-[10px]">
                           <Video className="w-3 h-3 mr-1" /> Video
+                        </Badge>
+                      )}
+                      {course.images && course.images.length > 0 && (
+                        <Badge className="bg-emerald-500/15 text-emerald-400 border-emerald-500/30 text-[10px]">
+                          <ImageIcon className="w-3 h-3 mr-1" /> {course.images.length} img
                         </Badge>
                       )}
                       {course.duration_estimate && (

@@ -32,6 +32,8 @@ export default function CourseCreatePage() {
   const [formation, setFormation] = useState(activeFormation || 'bts-sio-sisr');
   const [category, setCategory] = useState('');
   const [videoFilename, setVideoFilename] = useState(null);
+  const [coverImage, setCoverImage] = useState(null);
+  const [uploadingCover, setUploadingCover] = useState(false);
   const [images, setImages] = useState([]);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -39,6 +41,7 @@ export default function CourseCreatePage() {
   const [saving, setSaving] = useState(false);
   const [existingCourse, setExistingCourse] = useState(null);
   const fileInputRef = useRef(null);
+  const coverInputRef = useRef(null);
   const imageInputRef = useRef(null);
 
   useEffect(() => {
@@ -80,6 +83,7 @@ export default function CourseCreatePage() {
         setDurationEstimate(res.data.duration_estimate || '');
         setVideoFilename(res.data.video_filename || null);
         setImages(res.data.images || []);
+        setCoverImage(res.data.cover_image || null);
         if (res.data.formation) setFormation(res.data.formation);
         if (res.data.category) setCategory(res.data.category);
       } catch {
@@ -105,6 +109,7 @@ export default function CourseCreatePage() {
         setDurationEstimate(res.data.duration_estimate || '');
         setVideoFilename(res.data.video_filename || null);
         setImages(res.data.images || []);
+        setCoverImage(res.data.cover_image || null);
         if (res.data.exercise_id) setSelectedExercise(res.data.exercise_id);
         if (res.data.formation) setFormation(res.data.formation);
         if (res.data.category) setCategory(res.data.category);
@@ -152,6 +157,34 @@ export default function CourseCreatePage() {
   const removeVideo = () => {
     setVideoFilename(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleCoverUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast.error('Veuillez selectionner une image (JPEG, PNG, etc.)');
+      return;
+    }
+    setUploadingCover(true);
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      const res = await axios.post(`${API}/upload/image`, formData, {
+        headers: { ...getAuthHeaders(), 'Content-Type': 'multipart/form-data' },
+      });
+      setCoverImage(res.data.filename);
+      toast.success('Image de couverture uploadee');
+    } catch (err) {
+      toast.error(err.response?.data?.detail || "Erreur lors de l'upload");
+    }
+    setUploadingCover(false);
+    if (coverInputRef.current) coverInputRef.current.value = '';
+  };
+
+  const removeCover = () => {
+    setCoverImage(null);
+    if (coverInputRef.current) coverInputRef.current.value = '';
   };
 
   const handleImageUpload = async (e) => {
@@ -222,6 +255,7 @@ export default function CourseCreatePage() {
         exercise_id: selectedExercise || null,
         title: title.trim(),
         content: content.trim(),
+        cover_image: coverImage,
         video_filename: videoFilename,
         images: images,
         objectives: objectives.filter(o => o.trim()),
@@ -277,6 +311,75 @@ export default function CourseCreatePage() {
             className="bg-gray-50 dark:bg-zinc-900 border-gray-300 dark:border-gray-300 dark:border-zinc-700 text-gray-800 dark:text-zinc-200 focus:border-cyan-500"
             data-testid="course-title-input"
           />
+        </CardContent>
+      </Card>
+
+      {/* Cover Image / Image de couverture */}
+      <Card className="bg-white/90 dark:bg-zinc-900/50 backdrop-blur-md border-gray-200 dark:border-zinc-800 shadow-sm dark:shadow-none">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm flex items-center gap-2 text-violet-500 dark:text-violet-400" style={{ fontFamily: 'Space Grotesk' }}>
+            <ImageIcon className="w-4 h-4" /> Image de couverture
+            <Badge className="bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-zinc-500 border-gray-300 dark:border-zinc-700 text-[10px] ml-2">Recommande</Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-xs text-gray-500 dark:text-zinc-500 mb-3">
+            Cette image sera affichee comme vignette du cours dans la liste et en banniere dans la page du cours.
+          </p>
+          {coverImage ? (
+            <div className="relative group rounded-xl overflow-hidden border border-violet-500/20 bg-gray-100 dark:bg-zinc-800/50">
+              <img
+                src={`${API}/images/${coverImage}`}
+                alt="Couverture du cours"
+                className="w-full h-48 object-cover"
+              />
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="opacity-0 group-hover:opacity-100 text-white bg-red-500/80 hover:bg-red-600 transition-all"
+                  onClick={removeCover}
+                >
+                  <Trash2 className="w-4 h-4 mr-1" /> Supprimer
+                </Button>
+              </div>
+              <div className="absolute bottom-2 left-2">
+                <Badge className="bg-violet-600/80 text-white border-0 text-[10px]">Image de couverture</Badge>
+              </div>
+            </div>
+          ) : (
+            <div className="relative">
+              <input
+                ref={coverInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/gif,image/webp"
+                onChange={handleCoverUpload}
+                className="hidden"
+                id="cover-upload"
+              />
+              <label
+                htmlFor="cover-upload"
+                className={`flex flex-col items-center gap-3 p-8 border-2 border-dashed ${uploadingCover ? 'border-violet-500/30 bg-violet-500/5' : 'border-gray-300 dark:border-zinc-700 hover:border-violet-500/30'} rounded-xl cursor-pointer transition-all`}
+              >
+                {uploadingCover ? (
+                  <>
+                    <Loader2 className="w-10 h-10 text-violet-400 animate-spin" />
+                    <span className="text-sm text-violet-400">Upload en cours...</span>
+                  </>
+                ) : (
+                  <>
+                    <ImageIcon className="w-10 h-10 text-gray-400 dark:text-zinc-600" />
+                    <span className="text-sm text-gray-500 dark:text-zinc-400">
+                      Cliquez pour ajouter une image de couverture
+                    </span>
+                    <span className="text-xs text-gray-400 dark:text-zinc-600">
+                      JPEG, PNG, GIF, WebP - Format paysage recommande (16:9)
+                    </span>
+                  </>
+                )}
+              </label>
+            </div>
+          )}
         </CardContent>
       </Card>
 

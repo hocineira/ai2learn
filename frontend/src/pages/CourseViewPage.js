@@ -79,9 +79,24 @@ export default function CourseViewPage() {
 
       {/* Hero Header */}
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-zinc-900 via-zinc-900/95 to-zinc-900/90 border border-gray-200 dark:border-zinc-800">
-        <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-transparent to-violet-500/5" />
-        <div className="absolute top-0 right-0 w-96 h-96 bg-cyan-500/3 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-        <div className="absolute bottom-0 left-0 w-72 h-72 bg-violet-500/3 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
+        {/* Cover image as background */}
+        {course.cover_image && (
+          <div className="absolute inset-0">
+            <img
+              src={`${API}/images/${course.cover_image}`}
+              alt=""
+              className="w-full h-full object-cover opacity-30"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-zinc-900 via-zinc-900/80 to-zinc-900/40" />
+          </div>
+        )}
+        {!course.cover_image && (
+          <>
+            <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-transparent to-violet-500/5" />
+            <div className="absolute top-0 right-0 w-96 h-96 bg-cyan-500/3 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+            <div className="absolute bottom-0 left-0 w-72 h-72 bg-violet-500/3 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
+          </>
+        )}
         
         <div className="relative p-8 md:p-10">
           <div className="flex flex-wrap items-center gap-2 mb-4">
@@ -101,17 +116,17 @@ export default function CourseViewPage() {
           </div>
 
           <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-3" style={{ fontFamily: 'Space Grotesk' }}>
-            <span className="text-gradient">{course.title}</span>
+            <span className={course.cover_image ? "text-white" : "text-gradient"}>{course.title}</span>
           </h1>
 
           {exercise && (
-            <p className="text-gray-500 dark:text-zinc-400 text-lg max-w-3xl leading-relaxed">
+            <p className={`text-lg max-w-3xl leading-relaxed ${course.cover_image ? 'text-white/70' : 'text-gray-500 dark:text-zinc-400'}`}>
               {exercise.description}
             </p>
           )}
 
           {course.created_by_name && (
-            <p className="text-xs text-gray-400 dark:text-zinc-600 mt-4">
+            <p className={`text-xs mt-4 ${course.cover_image ? 'text-white/40' : 'text-gray-400 dark:text-zinc-600'}`}>
               Par {course.created_by_name} · {new Date(course.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
             </p>
           )}

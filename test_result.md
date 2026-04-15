@@ -220,6 +220,18 @@ backend:
           comment: "✅ VERIFIED"
 
 frontend:
+  - task: "Cover Image Feature for Courses"
+    implemented: true
+    working: true
+    file: "frontend/src/pages/CourseCreatePage.js, frontend/src/pages/CoursesListPage.js, frontend/src/pages/CourseViewPage.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "testing"
+          comment: "✅ COMPREHENSIVE COVER IMAGE TESTING COMPLETED - ALL TESTS PASSED. (1) COURSE CREATE PAGE: 'Image de couverture' section present with 'Recommande' badge. Upload zone displays 'Cliquez pour ajouter une image de couverture' text. Cover image upload working - successfully uploaded test PNG image. Preview appears after upload with 'Image de couverture' badge. (2) COURSES LIST: Cover image displays as banner at top of course card with gradient overlay. Course title overlaid on image in white text. Visual quality excellent - cyan test image with 'Cover Test Image' text clearly visible. (3) COURSE VIEW PAGE: Cover image used as hero header background with opacity and gradient overlay. Title displays in white (text-white) over cover image. Hero section looks professional and polished. (4) FALLBACK: Courses without cover images display correctly with BookOpen icon fallback. (5) BACKEND: cover_image field properly saved in course document and served via /api/images/{filename}. NO CRITICAL ISSUES FOUND. Cover image feature fully functional and production-ready."
+
   - task: "CoursesListPage - list courses"
     implemented: true
     working: true
@@ -283,8 +295,8 @@ frontend:
 
 metadata:
   created_by: "main_agent"
-  version: "2.4"
-  test_sequence: 7
+  version: "2.5"
+  test_sequence: 8
   run_ui: true
 
 test_plan:
@@ -306,3 +318,5 @@ agent_communication:
       message: "✅ NEW FEATURES COMPREHENSIVE TESTING COMPLETED - ALL TESTS PASSED. Tested all newly added features: (1) IMAGE UPLOAD ENDPOINT: POST /api/upload/image working for admin/formateur (200), students correctly denied (403). GET /api/images/{filename} serving images correctly. DELETE /api/images/{filename} working for admin/formateur. Files saved with UUID filenames in backend/uploads/images/. (2) COURSE CRUD WITH IMAGES: Course model correctly handles 'images' field as List[str]. POST /api/courses with images field working (201). GET /api/courses/{id} returning images field correctly. PUT /api/courses/{id} updating images field correctly. GET /api/courses listing courses with images field present. (3) LLM SETTINGS ENDPOINT: GET /api/settings returning llm_provider='emergent' and llm_active=True correctly. PUT /api/settings updating LLM key successfully. .env EMERGENT_LLM_KEY properly detected. Admin-only access enforced (students get 403). ALL 18 TESTS PASSED. NO CRITICAL ISSUES FOUND. All new features working as expected."
     - agent: "testing"
       message: "✅ IMAGE UPLOAD FEATURE UI TESTING COMPLETED - ALL TESTS PASSED. Comprehensive testing of the newly added image upload feature for courses: (1) COURSE CREATE PAGE: 'Images d'illustration' section present with correct upload zone text 'Cliquez pour ajouter des images d'illustration'. Multiple image upload supported. Images appear in grid with delete button overlay. Successfully created course with test image. (2) COURSE VIEW PAGE: 'Illustrations' section displays when course has images. Images shown in responsive grid. Lightbox functionality working - clicking image opens full-size view with dark backdrop and close button. Lightbox closes correctly. (3) SETTINGS PAGE: LLM key section visible for admin. 'Emergent/OpenAI' provider badge displayed. Info text correctly mentions 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite'. (4) STUDENT ROLE: Students can view courses and images but 'Creer un cours' button NOT visible (correct). Students can view course details and see 'Illustrations' section. ALL 6 TESTS PASSED. NO CRITICAL ISSUES FOUND. Image upload feature fully functional across all user roles."
+    - agent: "testing"
+      message: "✅ COVER IMAGE FEATURE COMPREHENSIVE TESTING COMPLETED - ALL TESTS PASSED. Tested the new COVER IMAGE feature for courses: (1) COURSE CREATE PAGE: 'Image de couverture' section present with 'Recommande' badge. Upload zone displays 'Cliquez pour ajouter une image de couverture' text. Cover image upload working - successfully uploaded test PNG image (800x450 cyan with white text). Preview appears after upload with 'Image de couverture' badge and delete button. (2) COURSES LIST: Cover image displays as banner at top of course card (height 160px) with gradient overlay (from-black/60 via-black/10 to-transparent). Course title overlaid on image in white text with drop shadow. Visual quality excellent - test image clearly visible with professional appearance. Fallback to BookOpen icon for courses without cover. (3) COURSE VIEW PAGE: Cover image used as hero header background with opacity-30 and gradient overlay (from-zinc-900 via-zinc-900/80 to-zinc-900/40). Title displays in white (text-white) over cover image. Hero section looks polished and professional. (4) BACKEND: cover_image field properly saved in course document (CourseCreate/CourseUpdate models). Image served via GET /api/images/{filename}. Image cleanup on course deletion. ALL 8 TESTS PASSED. NO CRITICAL ISSUES FOUND. Cover image feature fully functional and production-ready."

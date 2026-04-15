@@ -264,8 +264,9 @@ class CourseCreate(BaseModel):
     exercise_id: Optional[str] = None
     title: str
     content: str = ""
+    cover_image: Optional[str] = None  # Cover/thumbnail image filename
     video_filename: Optional[str] = None
-    images: List[str] = []  # List of image filenames
+    images: List[str] = []  # List of illustration image filenames
     objectives: List[str] = []
     prerequisites: List[str] = []
     duration_estimate: Optional[str] = None
@@ -276,8 +277,9 @@ class CourseUpdate(BaseModel):
     exercise_id: Optional[str] = None
     title: Optional[str] = None
     content: Optional[str] = None
+    cover_image: Optional[str] = None  # Cover/thumbnail image filename
     video_filename: Optional[str] = None
-    images: Optional[List[str]] = None  # List of image filenames
+    images: Optional[List[str]] = None  # List of illustration image filenames
     objectives: Optional[List[str]] = None
     prerequisites: Optional[List[str]] = None
     duration_estimate: Optional[str] = None
@@ -1364,6 +1366,7 @@ async def create_course(data: CourseCreate, current_user: dict = Depends(auth_de
         "exercise_id": data.exercise_id,
         "title": data.title,
         "content": data.content,
+        "cover_image": data.cover_image,
         "video_filename": data.video_filename,
         "images": data.images,
         "objectives": data.objectives,
@@ -1436,6 +1439,8 @@ async def update_course(course_id: str, data: CourseUpdate, current_user: dict =
         update["title"] = data.title
     if data.content is not None:
         update["content"] = data.content
+    if data.cover_image is not None:
+        update["cover_image"] = data.cover_image
     if data.video_filename is not None:
         update["video_filename"] = data.video_filename
     if data.images is not None:
@@ -1471,7 +1476,13 @@ async def delete_course(course_id: str, current_user: dict = Depends(auth_depend
         if video_path.exists():
             video_path.unlink()
     
-    # Delete associated images
+    # Delete associated cover image
+    if course.get("cover_image"):
+        cover_path = UPLOAD_IMAGES_DIR / course["cover_image"]
+        if cover_path.exists():
+            cover_path.unlink()
+    
+    # Delete associated illustration images
     for img_filename in course.get("images", []):
         img_path = UPLOAD_IMAGES_DIR / img_filename
         if img_path.exists():
