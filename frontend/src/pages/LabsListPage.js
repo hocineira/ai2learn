@@ -59,7 +59,7 @@ export default function LabsListPage() {
     fetchData();
   }, [API, getAuthHeaders, formation]);
 
-  if (loading) return <div className="text-zinc-500 text-center py-20">Chargement...</div>;
+  if (loading) return <div className="text-gray-500 dark:text-zinc-500 text-center py-20">Chargement...</div>;
 
   const getLabStatus = (exerciseId) => {
     return labs.find(l => l.exerciseId === exerciseId) || { status: 'not_started' };
@@ -71,7 +71,7 @@ export default function LabsListPage() {
         <h1 className="text-3xl md:text-4xl font-bold tracking-tight" style={{ fontFamily: 'Space Grotesk' }}>
           Labs <span className="text-gradient">pratiques</span>
         </h1>
-        <p className="text-zinc-500 mt-1">
+        <p className="text-gray-500 dark:text-zinc-500 mt-1">
           Environnements virtuels Windows Server pour vos travaux pratiques
         </p>
       </div>
@@ -86,7 +86,7 @@ export default function LabsListPage() {
             return (
               <Card
                 key={ex.id}
-                className={`bg-zinc-900/50 backdrop-blur-md border-zinc-800 hover:border-orange-500/30 transition-all cursor-pointer animate-fade-in-up ${isRunning ? 'border-emerald-500/30' : ''}`}
+                className={`bg-white/90 dark:bg-zinc-900/50 backdrop-blur-md border-gray-200 dark:border-gray-200 dark:border-zinc-800 shadow-sm dark:shadow-none hover:border-orange-500/30 transition-all cursor-pointer animate-fade-in-up ${isRunning ? 'border-emerald-500/30' : ''}`}
                 style={{ animationDelay: `${i * 0.05}s` }}
                 onClick={() => {
                   // If course exists and lab not yet running, go to course first
@@ -105,11 +105,11 @@ export default function LabsListPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <h3 className="text-base font-semibold text-zinc-200 truncate" style={{ fontFamily: 'Space Grotesk' }}>
+                        <h3 className="text-base font-semibold text-gray-800 dark:text-zinc-200 truncate" style={{ fontFamily: 'Space Grotesk' }}>
                           {ex.title}
                         </h3>
                       </div>
-                      <p className="text-sm text-zinc-500 line-clamp-2 mb-3">{ex.description}</p>
+                      <p className="text-sm text-gray-500 dark:text-zinc-500 line-clamp-2 mb-3">{ex.description}</p>
                       <div className="flex items-center gap-2 flex-wrap">
                         <Badge className="bg-orange-500/20 text-orange-400 border-orange-500/30 text-[10px]">
                           <Server className="w-3 h-3 mr-1" /> VM Windows
@@ -119,11 +119,11 @@ export default function LabsListPage() {
                             <BookOpen className="w-3 h-3 mr-1" /> Cours disponible
                           </Badge>
                         )}
-                        <Badge className="bg-zinc-800 text-zinc-400 border-zinc-700 text-[10px]">
+                        <Badge className="bg-zinc-800 text-gray-500 dark:text-zinc-400 border-gray-300 dark:border-zinc-700 text-[10px]">
                           {ex.category}
                         </Badge>
                         {ex.time_limit > 0 && (
-                          <Badge className="bg-zinc-800 text-zinc-400 border-zinc-700 text-[10px]">
+                          <Badge className="bg-zinc-800 text-gray-500 dark:text-zinc-400 border-gray-300 dark:border-zinc-700 text-[10px]">
                             <Clock className="w-3 h-3 mr-1" /> {ex.time_limit} min
                           </Badge>
                         )}
@@ -153,13 +153,13 @@ export default function LabsListPage() {
           })}
         </div>
       ) : (
-        <Card className="bg-zinc-900/50 backdrop-blur-md border-zinc-800">
+        <Card className="bg-white/90 dark:bg-zinc-900/50 backdrop-blur-md border-gray-200 dark:border-gray-200 dark:border-zinc-800 shadow-sm dark:shadow-none">
           <CardContent className="py-16 text-center">
-            <Monitor className="w-16 h-16 text-zinc-700 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-zinc-300 mb-2" style={{ fontFamily: 'Space Grotesk' }}>
+            <Monitor className="w-16 h-16 text-gray-300 dark:text-zinc-700 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-700 dark:text-zinc-300 mb-2" style={{ fontFamily: 'Space Grotesk' }}>
               Aucun lab disponible
             </h3>
-            <p className="text-sm text-zinc-500 max-w-md mx-auto">
+            <p className="text-sm text-gray-500 dark:text-zinc-500 max-w-md mx-auto">
               Les labs pratiques avec des machines virtuelles Windows Server seront bientot disponibles pour votre formation.
               Contactez votre formateur pour plus d'informations.
             </p>

@@ -49,18 +49,18 @@ export default function LoginPage() {
             <img src={LOGO_URL} alt="NETBFRS" className="h-14 w-auto rounded-lg" />
           </div>
           <h1 className="text-4xl font-bold tracking-tight mb-1" style={{ fontFamily: 'Space Grotesk' }}>
-            <span className="text-gradient">AI2</span><span className="text-zinc-200">Lean</span>
+            <span className="text-gradient">AI2</span><span className="text-gray-800 dark:text-zinc-200">Lean</span>
           </h1>
-          <p className="text-zinc-500 text-sm">Plateforme de formation intelligente</p>
-          <p className="text-zinc-600 text-xs mt-1">par NETBFRS Academy</p>
+          <p className="text-gray-500 dark:text-zinc-500 text-sm">Plateforme de formation intelligente</p>
+          <p className="text-gray-400 dark:text-zinc-600 text-xs mt-1">par NETBFRS Academy</p>
         </div>
 
-        <Card className="bg-zinc-900/60 backdrop-blur-xl border-zinc-800 shadow-2xl animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
+        <Card className="bg-white/95 dark:bg-zinc-900/60 backdrop-blur-xl border-gray-200 dark:border-zinc-800 shadow-2xl animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
           <CardHeader className="pb-4">
             <CardTitle className="text-xl" style={{ fontFamily: 'Space Grotesk' }}>
               {isLogin ? 'Connexion' : 'Inscription'}
             </CardTitle>
-            <CardDescription className="text-zinc-500">
+            <CardDescription className="text-gray-500 dark:text-zinc-500">
               {isLogin ? 'Accedez a votre espace de formation' : 'Creez votre compte AI2Lean'}
             </CardDescription>
           </CardHeader>
@@ -69,16 +69,16 @@ export default function LoginPage() {
               {!isLogin && (
                 <>
                   <div>
-                    <label className="text-xs font-mono text-zinc-500 uppercase tracking-wider mb-2 block">Nom complet</label>
-                    <Input data-testid="register-fullname" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Votre nom complet" className="bg-zinc-950 border-zinc-800 focus:border-cyan-500 focus:ring-cyan-500/20 text-zinc-100 placeholder:text-zinc-600" required />
+                    <label className="text-xs font-mono text-gray-500 dark:text-zinc-500 uppercase tracking-wider mb-2 block">Nom complet</label>
+                    <Input data-testid="register-fullname" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Votre nom complet" className="bg-white dark:bg-zinc-950 border-gray-200 dark:border-zinc-800 focus:border-cyan-500 focus:ring-cyan-500/20 text-gray-800 dark:text-zinc-100 placeholder:text-gray-400 dark:text-zinc-600" required />
                   </div>
                   <div>
-                    <label className="text-xs font-mono text-zinc-500 uppercase tracking-wider mb-2 block">Formation</label>
+                    <label className="text-xs font-mono text-gray-500 dark:text-zinc-500 uppercase tracking-wider mb-2 block">Formation</label>
                     <Select value={formation} onValueChange={setFormation}>
-                      <SelectTrigger data-testid="register-formation" className="bg-zinc-950 border-zinc-800 text-zinc-100">
+                      <SelectTrigger data-testid="register-formation" className="bg-white dark:bg-zinc-950 border-gray-200 dark:border-zinc-800 text-gray-800 dark:text-zinc-100">
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent className="bg-zinc-900 border-zinc-800">
+                      <SelectContent className="bg-gray-50 dark:bg-zinc-900 border-gray-200 dark:border-gray-200 dark:border-zinc-800">
                         <SelectItem value="bts-sio-sisr">
                           <span className="flex items-center gap-2"><GraduationCap className="w-3 h-3 text-cyan-400" /> BTS SIO SISR</span>
                         </SelectItem>
@@ -91,26 +91,26 @@ export default function LoginPage() {
                 </>
               )}
               <div>
-                <label className="text-xs font-mono text-zinc-500 uppercase tracking-wider mb-2 block">Nom d'utilisateur</label>
-                <Input data-testid="login-username" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="votre_username" className="bg-zinc-950 border-zinc-800 focus:border-cyan-500 focus:ring-cyan-500/20 text-zinc-100 placeholder:text-zinc-600" required />
+                <label className="text-xs font-mono text-gray-500 dark:text-zinc-500 uppercase tracking-wider mb-2 block">Nom d'utilisateur</label>
+                <Input data-testid="login-username" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="votre_username" className="bg-white dark:bg-zinc-950 border-gray-200 dark:border-zinc-800 focus:border-cyan-500 focus:ring-cyan-500/20 text-gray-800 dark:text-zinc-100 placeholder:text-gray-400 dark:text-zinc-600" required />
               </div>
               <div>
-                <label className="text-xs font-mono text-zinc-500 uppercase tracking-wider mb-2 block">Mot de passe</label>
+                <label className="text-xs font-mono text-gray-500 dark:text-zinc-500 uppercase tracking-wider mb-2 block">Mot de passe</label>
                 <div className="relative">
-                  <Input data-testid="login-password" type={showPwd ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Votre mot de passe" className="bg-zinc-950 border-zinc-800 focus:border-cyan-500 focus:ring-cyan-500/20 text-zinc-100 placeholder:text-zinc-600 pr-10" required />
-                  <button type="button" onClick={() => setShowPwd(!showPwd)} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors" data-testid="toggle-password">
+                  <Input data-testid="login-password" type={showPwd ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Votre mot de passe" className="bg-white dark:bg-zinc-950 border-gray-200 dark:border-zinc-800 focus:border-cyan-500 focus:ring-cyan-500/20 text-gray-800 dark:text-zinc-100 placeholder:text-gray-400 dark:text-zinc-600 pr-10" required />
+                  <button type="button" onClick={() => setShowPwd(!showPwd)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-zinc-500 hover:text-gray-700 dark:text-zinc-300 transition-colors" data-testid="toggle-password">
                     {showPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
               </div>
               {!isLogin && (
                 <div>
-                  <label className="text-xs font-mono text-zinc-500 uppercase tracking-wider mb-2 block">Role</label>
+                  <label className="text-xs font-mono text-gray-500 dark:text-zinc-500 uppercase tracking-wider mb-2 block">Role</label>
                   <Select value={role} onValueChange={setRole}>
-                    <SelectTrigger data-testid="register-role" className="bg-zinc-950 border-zinc-800 text-zinc-100">
+                    <SelectTrigger data-testid="register-role" className="bg-white dark:bg-zinc-950 border-gray-200 dark:border-zinc-800 text-gray-800 dark:text-zinc-100">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-zinc-900 border-zinc-800">
+                    <SelectContent className="bg-gray-50 dark:bg-zinc-900 border-gray-200 dark:border-gray-200 dark:border-zinc-800">
                       <SelectItem value="etudiant">Etudiant</SelectItem>
                       <SelectItem value="formateur">Formateur</SelectItem>
                     </SelectContent>
@@ -122,7 +122,7 @@ export default function LoginPage() {
               </Button>
             </form>
             <div className="mt-4 text-center">
-              <button data-testid="toggle-auth-mode" onClick={() => setIsLogin(!isLogin)} className="text-sm text-zinc-500 hover:text-cyan-400 transition-colors">
+              <button data-testid="toggle-auth-mode" onClick={() => setIsLogin(!isLogin)} className="text-sm text-gray-500 dark:text-zinc-500 hover:text-cyan-400 transition-colors">
                 {isLogin ? "Pas de compte ? S'inscrire" : 'Deja un compte ? Se connecter'}
               </button>
             </div>
@@ -130,7 +130,7 @@ export default function LoginPage() {
         </Card>
 
         <div className="mt-4 text-center animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
-          <p className="text-xs text-zinc-600">Demo: admin/admin123 | formateur/formateur123 | etudiant1/etudiant123 | ais_student1/etudiant123</p>
+          <p className="text-xs text-gray-400 dark:text-zinc-600">Demo: admin/admin123 | formateur/formateur123 | etudiant1/etudiant123 | ais_student1/etudiant123</p>
         </div>
       </div>
     </div>

@@ -21,8 +21,8 @@ const COLORS = ['#f43f5e', '#f59e0b', '#3b82f6', '#06b6d4', '#10b981'];
 const CustomTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 shadow-xl">
-        <p className="text-xs text-zinc-400 mb-1">{label}</p>
+      <div className="bg-zinc-900 border border-gray-300 dark:border-zinc-700 rounded-lg px-3 py-2 shadow-xl">
+        <p className="text-xs text-gray-500 dark:text-zinc-400 mb-1">{label}</p>
         {payload.map((p, i) => (
           <p key={i} className="text-sm font-medium" style={{ color: p.color }}>
             {p.name}: {p.value}
@@ -73,7 +73,7 @@ export default function AdminDashboard() {
     } catch (err) { console.error(err); }
   };
 
-  if (loading) return <div className="text-zinc-500 text-center py-20">Chargement...</div>;
+  if (loading) return <div className="text-gray-500 dark:text-zinc-500 text-center py-20">Chargement...</div>;
 
   const statCards = [
     { label: 'Etudiants', value: stats?.total_students || 0, icon: Users, color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/20' },
@@ -94,13 +94,13 @@ export default function AdminDashboard() {
           <h1 className="text-3xl md:text-4xl font-bold tracking-tight" style={{ fontFamily: 'Space Grotesk' }}>
             Tableau de bord <span className="text-gradient">AI2Lean</span>
           </h1>
-          <p className="text-zinc-500 mt-1">Vue d'ensemble - NETBFRS Academy</p>
+          <p className="text-gray-500 dark:text-zinc-500 mt-1">Vue d'ensemble - NETBFRS Academy</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" className="bg-zinc-900 border-zinc-700 text-zinc-300 hover:bg-zinc-800 hover:text-cyan-400" onClick={() => handleExportCSV('submissions-csv')} data-testid="export-submissions-csv">
+          <Button variant="outline" size="sm" className="bg-gray-50 dark:bg-zinc-900 border-gray-300 dark:border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-zinc-300 hover:bg-zinc-800 hover:text-cyan-400" onClick={() => handleExportCSV('submissions-csv')} data-testid="export-submissions-csv">
             <Download className="w-4 h-4 mr-2" /> Export soumissions
           </Button>
-          <Button variant="outline" size="sm" className="bg-zinc-900 border-zinc-700 text-zinc-300 hover:bg-zinc-800 hover:text-cyan-400" onClick={() => handleExportCSV('tracking-csv')} data-testid="export-tracking-csv">
+          <Button variant="outline" size="sm" className="bg-gray-50 dark:bg-zinc-900 border-gray-300 dark:border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-zinc-300 hover:bg-zinc-800 hover:text-cyan-400" onClick={() => handleExportCSV('tracking-csv')} data-testid="export-tracking-csv">
             <Download className="w-4 h-4 mr-2" /> Export suivi
           </Button>
         </div>
@@ -112,25 +112,25 @@ export default function AdminDashboard() {
           const meta = formationMeta[f.id] || {};
           const Icon = meta.icon || GraduationCap;
           return (
-            <Card key={f.id} className="bg-zinc-900/50 backdrop-blur-md border-zinc-800 hover:border-zinc-700 transition-all">
+            <Card key={f.id} className="bg-white/90 dark:bg-zinc-900/50 backdrop-blur-md border-gray-200 dark:border-gray-200 dark:border-zinc-800 shadow-sm dark:shadow-none hover:border-gray-300 dark:border-zinc-700 transition-all">
               <CardContent className="p-5">
                 <div className="flex items-center gap-3 mb-3">
                   <div className={`w-10 h-10 rounded-lg ${meta.bg} border flex items-center justify-center`}>
                     <Icon className={`w-5 h-5 ${meta.color}`} />
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-zinc-200" style={{ fontFamily: 'Space Grotesk' }}>{f.name}</p>
-                    <p className="text-xs text-zinc-500">{f.students} etudiant{f.students !== 1 ? 's' : ''}</p>
+                    <p className="text-sm font-semibold text-gray-800 dark:text-zinc-200" style={{ fontFamily: 'Space Grotesk' }}>{f.name}</p>
+                    <p className="text-xs text-gray-500 dark:text-zinc-500">{f.students} etudiant{f.students !== 1 ? 's' : ''}</p>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3 text-center">
-                  <div className="bg-zinc-800/30 rounded-md p-2">
-                    <p className="text-lg font-bold text-zinc-200" style={{ fontFamily: 'Space Grotesk' }}>{f.exercises}</p>
-                    <p className="text-[10px] text-zinc-500 uppercase">Exercices</p>
+                  <div className="bg-gray-50 dark:bg-zinc-800/30 rounded-md p-2">
+                    <p className="text-lg font-bold text-gray-800 dark:text-zinc-200" style={{ fontFamily: 'Space Grotesk' }}>{f.exercises}</p>
+                    <p className="text-[10px] text-gray-500 dark:text-zinc-500 uppercase">Exercices</p>
                   </div>
-                  <div className="bg-zinc-800/30 rounded-md p-2">
-                    <p className="text-lg font-bold text-zinc-200" style={{ fontFamily: 'Space Grotesk' }}>{f.submissions}</p>
-                    <p className="text-[10px] text-zinc-500 uppercase">Soumissions</p>
+                  <div className="bg-gray-50 dark:bg-zinc-800/30 rounded-md p-2">
+                    <p className="text-lg font-bold text-gray-800 dark:text-zinc-200" style={{ fontFamily: 'Space Grotesk' }}>{f.submissions}</p>
+                    <p className="text-[10px] text-gray-500 dark:text-zinc-500 uppercase">Soumissions</p>
                   </div>
                 </div>
               </CardContent>
@@ -142,11 +142,11 @@ export default function AdminDashboard() {
       {/* Global stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {statCards.map((s, i) => (
-          <Card key={s.label} className="bg-zinc-900/50 backdrop-blur-md border-zinc-800 animate-fade-in-up" style={{ animationDelay: `${i * 0.05}s` }}>
+          <Card key={s.label} className="bg-white/90 dark:bg-zinc-900/50 backdrop-blur-md border-gray-200 dark:border-gray-200 dark:border-zinc-800 shadow-sm dark:shadow-none animate-fade-in-up" style={{ animationDelay: `${i * 0.05}s` }}>
             <CardContent className="p-5">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-mono text-zinc-500 uppercase tracking-wider">{s.label}</p>
+                  <p className="text-xs font-mono text-gray-500 dark:text-zinc-500 uppercase tracking-wider">{s.label}</p>
                   <p className="text-3xl font-bold mt-1" style={{ fontFamily: 'Space Grotesk' }}>{s.value}</p>
                 </div>
                 <div className={`w-10 h-10 rounded-lg ${s.bg} border flex items-center justify-center`}>
@@ -160,7 +160,7 @@ export default function AdminDashboard() {
 
       {/* Charts row 1: Timeline + Score Distribution */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="bg-zinc-900/50 backdrop-blur-md border-zinc-800">
+        <Card className="bg-white/90 dark:bg-zinc-900/50 backdrop-blur-md border-gray-200 dark:border-gray-200 dark:border-zinc-800 shadow-sm dark:shadow-none">
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2" style={{ fontFamily: 'Space Grotesk' }}>
               <TrendingUp className="w-4 h-4 text-cyan-400" /> Activite dans le temps
@@ -184,12 +184,12 @@ export default function AdminDashboard() {
                 </AreaChart>
               </ResponsiveContainer>
             ) : (
-              <p className="text-zinc-500 text-sm text-center py-10">Aucune donnee disponible</p>
+              <p className="text-gray-500 dark:text-zinc-500 text-sm text-center py-10">Aucune donnee disponible</p>
             )}
           </CardContent>
         </Card>
 
-        <Card className="bg-zinc-900/50 backdrop-blur-md border-zinc-800">
+        <Card className="bg-white/90 dark:bg-zinc-900/50 backdrop-blur-md border-gray-200 dark:border-gray-200 dark:border-zinc-800 shadow-sm dark:shadow-none">
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2" style={{ fontFamily: 'Space Grotesk' }}>
               <BarChart3 className="w-4 h-4 text-violet-400" /> Distribution des notes
@@ -211,7 +211,7 @@ export default function AdminDashboard() {
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <p className="text-zinc-500 text-sm text-center py-10">Aucune note disponible</p>
+              <p className="text-gray-500 dark:text-zinc-500 text-sm text-center py-10">Aucune note disponible</p>
             )}
           </CardContent>
         </Card>
@@ -219,7 +219,7 @@ export default function AdminDashboard() {
 
       {/* Charts row 2: Categories + Top Students */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="bg-zinc-900/50 backdrop-blur-md border-zinc-800">
+        <Card className="bg-white/90 dark:bg-zinc-900/50 backdrop-blur-md border-gray-200 dark:border-gray-200 dark:border-zinc-800 shadow-sm dark:shadow-none">
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2" style={{ fontFamily: 'Space Grotesk' }}>
               <BookOpen className="w-4 h-4 text-cyan-400" /> Performance par categorie
@@ -237,12 +237,12 @@ export default function AdminDashboard() {
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <p className="text-zinc-500 text-sm text-center py-10">Aucune donnee</p>
+              <p className="text-gray-500 dark:text-zinc-500 text-sm text-center py-10">Aucune donnee</p>
             )}
           </CardContent>
         </Card>
 
-        <Card className="bg-zinc-900/50 backdrop-blur-md border-zinc-800">
+        <Card className="bg-white/90 dark:bg-zinc-900/50 backdrop-blur-md border-gray-200 dark:border-gray-200 dark:border-zinc-800 shadow-sm dark:shadow-none">
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2" style={{ fontFamily: 'Space Grotesk' }}>
               <Users className="w-4 h-4 text-emerald-400" /> Top etudiants
@@ -253,22 +253,22 @@ export default function AdminDashboard() {
               <div className="space-y-3 max-h-[220px] overflow-y-auto">
                 {topStudents.map((s, i) => (
                   <div key={s.id} className="flex items-center gap-3">
-                    <span className="w-6 h-6 rounded-full bg-zinc-800 flex items-center justify-center text-xs font-bold" style={{ color: i < 3 ? '#fbbf24' : '#71717a' }}>
+                    <span className="w-6 h-6 rounded-full bg-gray-200 dark:bg-zinc-800 flex items-center justify-center text-xs font-bold" style={{ color: i < 3 ? '#fbbf24' : '#71717a' }}>
                       {i + 1}
                     </span>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm text-zinc-200 truncate">{s.name}</p>
+                      <p className="text-sm text-gray-800 dark:text-zinc-200 truncate">{s.name}</p>
                       <div className="flex items-center gap-2 mt-1">
-                        <Progress value={s.avg_score} className="h-1.5 flex-1 bg-zinc-800 [&>div]:bg-gradient-to-r [&>div]:from-cyan-500 [&>div]:to-violet-500" />
-                        <span className="text-xs font-mono text-zinc-400 w-10 text-right">{s.avg_score}%</span>
+                        <Progress value={s.avg_score} className="h-1.5 flex-1 bg-gray-200 dark:bg-zinc-800 [&>div]:bg-gradient-to-r [&>div]:from-cyan-500 [&>div]:to-violet-500" />
+                        <span className="text-xs font-mono text-gray-500 dark:text-zinc-400 w-10 text-right">{s.avg_score}%</span>
                       </div>
                     </div>
-                    <span className="text-xs text-zinc-500">{s.submissions} ex.</span>
+                    <span className="text-xs text-gray-500 dark:text-zinc-500">{s.submissions} ex.</span>
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="text-zinc-500 text-sm text-center py-10">Aucun etudiant</p>
+              <p className="text-gray-500 dark:text-zinc-500 text-sm text-center py-10">Aucun etudiant</p>
             )}
           </CardContent>
         </Card>
@@ -276,7 +276,7 @@ export default function AdminDashboard() {
 
       {/* Performance + Recent */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="bg-zinc-900/50 backdrop-blur-md border-zinc-800">
+        <Card className="bg-white/90 dark:bg-zinc-900/50 backdrop-blur-md border-gray-200 dark:border-gray-200 dark:border-zinc-800 shadow-sm dark:shadow-none">
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2" style={{ fontFamily: 'Space Grotesk' }}>
               <TrendingUp className="w-4 h-4 text-cyan-400" /> Performance moyenne
@@ -285,17 +285,17 @@ export default function AdminDashboard() {
           <CardContent>
             <div className="flex items-end gap-4">
               <span className="text-5xl font-bold text-gradient" style={{ fontFamily: 'Space Grotesk' }}>{stats?.avg_score || 0}%</span>
-              <span className="text-zinc-500 text-sm mb-2">score moyen global</span>
+              <span className="text-gray-500 dark:text-zinc-500 text-sm mb-2">score moyen global</span>
             </div>
-            <Progress value={stats?.avg_score || 0} className="mt-4 h-2 bg-zinc-800 [&>div]:bg-gradient-to-r [&>div]:from-cyan-500 [&>div]:to-violet-500" />
-            <div className="mt-3 flex gap-4 text-xs text-zinc-500">
+            <Progress value={stats?.avg_score || 0} className="mt-4 h-2 bg-gray-200 dark:bg-zinc-800 [&>div]:bg-gradient-to-r [&>div]:from-cyan-500 [&>div]:to-violet-500" />
+            <div className="mt-3 flex gap-4 text-xs text-gray-500 dark:text-zinc-500">
               <span>{stats?.graded_submissions || 0} corrigees</span>
               <span>{(stats?.total_submissions || 0) - (stats?.graded_submissions || 0)} en attente</span>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-zinc-900/50 backdrop-blur-md border-zinc-800">
+        <Card className="bg-white/90 dark:bg-zinc-900/50 backdrop-blur-md border-gray-200 dark:border-gray-200 dark:border-zinc-800 shadow-sm dark:shadow-none">
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2" style={{ fontFamily: 'Space Grotesk' }}>
               <Clock className="w-4 h-4 text-cyan-400" /> Activite recente
@@ -304,21 +304,21 @@ export default function AdminDashboard() {
           <CardContent>
             <div className="space-y-3 max-h-[200px] overflow-y-auto">
               {stats?.recent_submissions?.length ? stats.recent_submissions.map((sub, i) => (
-                <div key={i} className="flex items-center justify-between py-2 border-b border-zinc-800/50 last:border-0">
+                <div key={i} className="flex items-center justify-between py-2 border-b border-gray-200 dark:border-zinc-800/50 last:border-0">
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-7 h-7 rounded-full bg-zinc-800 flex items-center justify-center text-xs font-medium text-zinc-400">
+                    <div className="w-7 h-7 rounded-full bg-gray-200 dark:bg-zinc-800 flex items-center justify-center text-xs font-medium text-gray-500 dark:text-zinc-400">
                       {sub.student_name?.charAt(0)}
                     </div>
                     <div className="min-w-0">
-                      <p className="text-sm text-zinc-200 truncate">{sub.student_name}</p>
-                      <p className="text-xs text-zinc-500 truncate">{sub.exercise_title}</p>
+                      <p className="text-sm text-gray-800 dark:text-zinc-200 truncate">{sub.student_name}</p>
+                      <p className="text-xs text-gray-500 dark:text-zinc-500 truncate">{sub.exercise_title}</p>
                     </div>
                   </div>
                   <Badge className={sub.graded ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-amber-500/20 text-amber-400 border-amber-500/30'}>
                     {sub.graded ? `${sub.score}/${sub.max_score}` : 'En attente'}
                   </Badge>
                 </div>
-              )) : <p className="text-zinc-500 text-sm py-4 text-center">Aucune activite recente</p>}
+              )) : <p className="text-gray-500 dark:text-zinc-500 text-sm py-4 text-center">Aucune activite recente</p>}
             </div>
           </CardContent>
         </Card>

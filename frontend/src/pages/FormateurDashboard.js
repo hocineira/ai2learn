@@ -17,8 +17,8 @@ const COLORS = ['#f43f5e', '#f59e0b', '#3b82f6', '#06b6d4', '#10b981'];
 const CustomTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 shadow-xl">
-        <p className="text-xs text-zinc-400 mb-1">{label}</p>
+      <div className="bg-zinc-900 border border-gray-300 dark:border-zinc-700 rounded-lg px-3 py-2 shadow-xl">
+        <p className="text-xs text-gray-500 dark:text-zinc-400 mb-1">{label}</p>
         {payload.map((p, i) => (
           <p key={i} className="text-sm font-medium" style={{ color: p.color }}>
             {p.name}: {p.value}
@@ -77,7 +77,7 @@ export default function FormateurDashboard() {
     } catch (err) { console.error(err); }
   };
 
-  if (loading) return <div className="text-zinc-500 text-center py-20">Chargement...</div>;
+  if (loading) return <div className="text-gray-500 dark:text-zinc-500 text-center py-20">Chargement...</div>;
 
   const formationLabel = activeFormation === 'bachelor-ais' ? 'Bachelor AIS' : 'BTS SIO SISR';
   const timelineData = (charts?.timeline || []).slice(-14);
@@ -91,10 +91,10 @@ export default function FormateurDashboard() {
           <h1 className="text-3xl md:text-4xl font-bold tracking-tight" style={{ fontFamily: 'Space Grotesk' }}>
             <span className="text-gradient">AI2Lean</span> - {formationLabel}
           </h1>
-          <p className="text-zinc-500 mt-1">Gerez vos exercices et suivez vos etudiants</p>
+          <p className="text-gray-500 dark:text-zinc-500 mt-1">Gerez vos exercices et suivez vos etudiants</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" className="bg-zinc-900 border-zinc-700 text-zinc-300 hover:bg-zinc-800 hover:text-cyan-400" onClick={() => handleExportCSV('submissions-csv')}>
+          <Button variant="outline" size="sm" className="bg-gray-50 dark:bg-zinc-900 border-gray-300 dark:border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-zinc-300 hover:bg-zinc-800 hover:text-cyan-400" onClick={() => handleExportCSV('submissions-csv')}>
             <Download className="w-4 h-4 mr-2" /> Export CSV
           </Button>
           <Button data-testid="create-exercise-btn" onClick={() => navigate('/exercises/create')} className="bg-gradient-to-r from-cyan-600 to-violet-600 hover:from-cyan-500 hover:to-violet-500 text-white">
@@ -104,35 +104,35 @@ export default function FormateurDashboard() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="bg-zinc-900/50 backdrop-blur-md border-zinc-800">
+        <Card className="bg-white/90 dark:bg-zinc-900/50 backdrop-blur-md border-gray-200 dark:border-gray-200 dark:border-zinc-800 shadow-sm dark:shadow-none">
           <CardContent className="p-5 flex items-center gap-4">
             <div className="w-10 h-10 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center">
               <BookOpen className="w-5 h-5 text-cyan-400" />
             </div>
             <div>
-              <p className="text-xs font-mono text-zinc-500 uppercase">Exercices</p>
+              <p className="text-xs font-mono text-gray-500 dark:text-zinc-500 uppercase">Exercices</p>
               <p className="text-2xl font-bold" style={{ fontFamily: 'Space Grotesk' }}>{exercises.length}</p>
             </div>
           </CardContent>
         </Card>
-        <Card className="bg-zinc-900/50 backdrop-blur-md border-zinc-800">
+        <Card className="bg-white/90 dark:bg-zinc-900/50 backdrop-blur-md border-gray-200 dark:border-gray-200 dark:border-zinc-800 shadow-sm dark:shadow-none">
           <CardContent className="p-5 flex items-center gap-4">
             <div className="w-10 h-10 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
               <Users className="w-5 h-5 text-emerald-400" />
             </div>
             <div>
-              <p className="text-xs font-mono text-zinc-500 uppercase">Etudiants</p>
+              <p className="text-xs font-mono text-gray-500 dark:text-zinc-500 uppercase">Etudiants</p>
               <p className="text-2xl font-bold" style={{ fontFamily: 'Space Grotesk' }}>{tracking.length}</p>
             </div>
           </CardContent>
         </Card>
-        <Card className="bg-zinc-900/50 backdrop-blur-md border-zinc-800">
+        <Card className="bg-white/90 dark:bg-zinc-900/50 backdrop-blur-md border-gray-200 dark:border-gray-200 dark:border-zinc-800 shadow-sm dark:shadow-none">
           <CardContent className="p-5 flex items-center gap-4">
             <div className="w-10 h-10 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
               <TrendingUp className="w-5 h-5 text-indigo-400" />
             </div>
             <div>
-              <p className="text-xs font-mono text-zinc-500 uppercase">Score moyen</p>
+              <p className="text-xs font-mono text-gray-500 dark:text-zinc-500 uppercase">Score moyen</p>
               <p className="text-2xl font-bold" style={{ fontFamily: 'Space Grotesk' }}>{stats?.avg_score || 0}%</p>
             </div>
           </CardContent>
@@ -141,7 +141,7 @@ export default function FormateurDashboard() {
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="bg-zinc-900/50 backdrop-blur-md border-zinc-800">
+        <Card className="bg-white/90 dark:bg-zinc-900/50 backdrop-blur-md border-gray-200 dark:border-gray-200 dark:border-zinc-800 shadow-sm dark:shadow-none">
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2" style={{ fontFamily: 'Space Grotesk' }}>
               <TrendingUp className="w-4 h-4 text-cyan-400" /> Soumissions dans le temps
@@ -165,12 +165,12 @@ export default function FormateurDashboard() {
                 </AreaChart>
               </ResponsiveContainer>
             ) : (
-              <p className="text-zinc-500 text-sm text-center py-10">Aucune donnee</p>
+              <p className="text-gray-500 dark:text-zinc-500 text-sm text-center py-10">Aucune donnee</p>
             )}
           </CardContent>
         </Card>
 
-        <Card className="bg-zinc-900/50 backdrop-blur-md border-zinc-800">
+        <Card className="bg-white/90 dark:bg-zinc-900/50 backdrop-blur-md border-gray-200 dark:border-gray-200 dark:border-zinc-800 shadow-sm dark:shadow-none">
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2" style={{ fontFamily: 'Space Grotesk' }}>
               <BarChart3 className="w-4 h-4 text-violet-400" /> Distribution des notes
@@ -192,20 +192,20 @@ export default function FormateurDashboard() {
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <p className="text-zinc-500 text-sm text-center py-10">Aucune note</p>
+              <p className="text-gray-500 dark:text-zinc-500 text-sm text-center py-10">Aucune note</p>
             )}
           </CardContent>
         </Card>
       </div>
 
       {/* Students tracking */}
-      <Card className="bg-zinc-900/50 backdrop-blur-md border-zinc-800">
+      <Card className="bg-white/90 dark:bg-zinc-900/50 backdrop-blur-md border-gray-200 dark:border-gray-200 dark:border-zinc-800 shadow-sm dark:shadow-none">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-base flex items-center gap-2" style={{ fontFamily: 'Space Grotesk' }}>
               <Users className="w-4 h-4 text-cyan-400" /> Suivi des etudiants
             </CardTitle>
-            <Button variant="ghost" size="sm" className="text-zinc-400 hover:text-cyan-400 text-xs" onClick={() => handleExportCSV('tracking-csv')}>
+            <Button variant="ghost" size="sm" className="text-gray-500 dark:text-zinc-400 hover:text-cyan-400 text-xs" onClick={() => handleExportCSV('tracking-csv')}>
               <Download className="w-3 h-3 mr-1" /> CSV
             </Button>
           </div>
@@ -214,35 +214,35 @@ export default function FormateurDashboard() {
           {tracking.length ? (
             <div className="space-y-3">
               {tracking.slice(0, 6).map((student) => (
-                <div key={student.id} className="flex items-center gap-4 p-3 rounded-lg bg-zinc-800/30 border border-zinc-800/50 hover:border-zinc-700 transition-colors">
+                <div key={student.id} className="flex items-center gap-4 p-3 rounded-lg bg-gray-50 dark:bg-zinc-800/30 border border-gray-200 dark:border-zinc-800/50 hover:border-gray-300 dark:border-zinc-700 transition-colors">
                   <div className="w-9 h-9 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-sm font-medium text-emerald-400">
                     {student.full_name?.charAt(0)}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-zinc-200">{student.full_name}</p>
-                    <p className="text-xs text-zinc-500">@{student.username}</p>
+                    <p className="text-sm font-medium text-gray-800 dark:text-zinc-200">{student.full_name}</p>
+                    <p className="text-xs text-gray-500 dark:text-zinc-500">@{student.username}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-medium text-zinc-200">{student.exercises_completed} exerc.</p>
-                    <p className="text-xs text-zinc-500">Score: {student.avg_score}%</p>
+                    <p className="text-sm font-medium text-gray-800 dark:text-zinc-200">{student.exercises_completed} exerc.</p>
+                    <p className="text-xs text-gray-500 dark:text-zinc-500">Score: {student.avg_score}%</p>
                   </div>
                   <div className="w-20">
-                    <Progress value={student.avg_score} className="h-1.5 bg-zinc-800 [&>div]:bg-emerald-500" />
+                    <Progress value={student.avg_score} className="h-1.5 bg-gray-200 dark:bg-zinc-800 [&>div]:bg-emerald-500" />
                   </div>
                 </div>
               ))}
               {tracking.length > 6 && (
-                <Button variant="ghost" className="w-full text-zinc-400 hover:text-cyan-400" onClick={() => navigate('/tracking')}>
+                <Button variant="ghost" className="w-full text-gray-500 dark:text-zinc-400 hover:text-cyan-400" onClick={() => navigate('/tracking')}>
                   Voir tous ({tracking.length})
                 </Button>
               )}
             </div>
-          ) : <p className="text-zinc-500 text-sm py-4 text-center">Aucun etudiant dans cette formation</p>}
+          ) : <p className="text-gray-500 dark:text-zinc-500 text-sm py-4 text-center">Aucun etudiant dans cette formation</p>}
         </CardContent>
       </Card>
 
       {/* Exercises */}
-      <Card className="bg-zinc-900/50 backdrop-blur-md border-zinc-800">
+      <Card className="bg-white/90 dark:bg-zinc-900/50 backdrop-blur-md border-gray-200 dark:border-gray-200 dark:border-zinc-800 shadow-sm dark:shadow-none">
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2" style={{ fontFamily: 'Space Grotesk' }}>
             <BookOpen className="w-4 h-4 text-cyan-400" /> Exercices
@@ -251,17 +251,17 @@ export default function FormateurDashboard() {
         <CardContent>
           <div className="space-y-2">
             {exercises.slice(0, 5).map((ex) => (
-              <div key={ex.id} className="flex items-center justify-between p-3 rounded-lg bg-zinc-800/30 border border-zinc-800/50 hover:border-cyan-500/30 transition-all cursor-pointer group"
+              <div key={ex.id} className="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-zinc-800/30 border border-gray-200 dark:border-zinc-800/50 hover:border-cyan-500/30 transition-all cursor-pointer group"
                 onClick={() => navigate(`/exercises/${ex.id}`)} data-testid={`exercise-card-${ex.id}`}>
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-zinc-200 group-hover:text-cyan-400 transition-colors truncate">{ex.title}</p>
+                  <p className="text-sm font-medium text-gray-800 dark:text-zinc-200 group-hover:text-cyan-400 transition-colors truncate">{ex.title}</p>
                   <div className="flex items-center gap-2 mt-1">
-                    <Badge className="bg-zinc-800 text-zinc-400 border-zinc-700 text-[10px]">{ex.category}</Badge>
-                    <span className="text-xs text-zinc-500">{ex.questions?.length || 0} Q</span>
+                    <Badge className="bg-zinc-800 text-gray-500 dark:text-zinc-400 border-gray-300 dark:border-zinc-700 text-[10px]">{ex.category}</Badge>
+                    <span className="text-xs text-gray-500 dark:text-zinc-500">{ex.questions?.length || 0} Q</span>
                     {ex.shared && <Badge className="bg-violet-500/20 text-violet-400 border-violet-500/30 text-[10px]">Partage</Badge>}
                   </div>
                 </div>
-                <Badge className={ex.submission_count > 0 ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-zinc-800 text-zinc-500 border-zinc-700'}>
+                <Badge className={ex.submission_count > 0 ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-zinc-800 text-gray-500 dark:text-zinc-500 border-gray-300 dark:border-zinc-700'}>
                   {ex.submission_count} soum.
                 </Badge>
               </div>

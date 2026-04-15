@@ -46,7 +46,7 @@ export default function CoursesListPage() {
     }
   };
 
-  if (loading) return <div className="text-zinc-500 text-center py-20">Chargement...</div>;
+  if (loading) return <div className="text-gray-500 dark:text-zinc-500 text-center py-20">Chargement...</div>;
 
   return (
     <div className="space-y-6" data-testid="courses-list-page">
@@ -55,7 +55,7 @@ export default function CoursesListPage() {
           <h1 className="text-3xl md:text-4xl font-bold tracking-tight" style={{ fontFamily: 'Space Grotesk' }}>
             Cours <span className="text-gradient">pedagogiques</span>
           </h1>
-          <p className="text-zinc-500 mt-1">
+          <p className="text-gray-500 dark:text-zinc-500 mt-1">
             Consultez les cours avant de demarrer vos travaux pratiques
           </p>
         </div>
@@ -82,7 +82,7 @@ export default function CoursesListPage() {
             return (
             <Card
               key={course.id}
-              className="bg-zinc-900/50 backdrop-blur-md border-zinc-800 hover:border-cyan-500/30 transition-all cursor-pointer animate-fade-in-up group"
+              className="bg-white/90 dark:bg-zinc-900/50 backdrop-blur-md border-gray-200 dark:border-gray-200 dark:border-zinc-800 shadow-sm dark:shadow-none hover:border-cyan-500/30 transition-all cursor-pointer animate-fade-in-up group"
               style={{ animationDelay: `${i * 0.05}s` }}
               onClick={() => navigate(courseUrl)}
               data-testid={`course-card-${course.id}`}
@@ -93,15 +93,15 @@ export default function CoursesListPage() {
                     <BookOpen className="w-6 h-6 text-cyan-400" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="text-base font-semibold text-zinc-200 truncate mb-1" style={{ fontFamily: 'Space Grotesk' }}>
+                    <h3 className="text-base font-semibold text-gray-800 dark:text-zinc-200 truncate mb-1" style={{ fontFamily: 'Space Grotesk' }}>
                       {course.title}
                     </h3>
                     {course.exercise_title ? (
-                      <p className="text-xs text-zinc-500 mb-2 flex items-center gap-1">
+                      <p className="text-xs text-gray-500 dark:text-zinc-500 mb-2 flex items-center gap-1">
                         <Monitor className="w-3 h-3" /> Lab: {course.exercise_title}
                       </p>
                     ) : (
-                      <p className="text-xs text-zinc-600 mb-2 italic">Cours independant (pas de lab associe)</p>
+                      <p className="text-xs text-gray-400 dark:text-zinc-600 mb-2 italic">Cours independant (pas de lab associe)</p>
                     )}
                     <div className="flex items-center gap-2 flex-wrap">
                       {course.exercise_id && (
@@ -115,7 +115,7 @@ export default function CoursesListPage() {
                         </Badge>
                       )}
                       {course.duration_estimate && (
-                        <Badge className="bg-zinc-800 text-zinc-400 border-zinc-700 text-[10px]">
+                        <Badge className="bg-zinc-800 text-gray-500 dark:text-zinc-400 border-gray-300 dark:border-zinc-700 text-[10px]">
                           <Clock className="w-3 h-3 mr-1" /> {course.duration_estimate}
                         </Badge>
                       )}
@@ -125,7 +125,7 @@ export default function CoursesListPage() {
                         </Badge>
                       )}
                       {categoryLabel && (
-                        <Badge className="bg-zinc-800 text-zinc-400 border-zinc-700 text-[10px]">
+                        <Badge className="bg-zinc-800 text-gray-500 dark:text-zinc-400 border-gray-300 dark:border-zinc-700 text-[10px]">
                           {categoryLabel}
                         </Badge>
                       )}
@@ -148,7 +148,7 @@ export default function CoursesListPage() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="text-zinc-500 hover:text-cyan-400 px-1.5 h-7"
+                          className="text-gray-500 dark:text-zinc-500 hover:text-cyan-400 px-1.5 h-7"
                           onClick={(e) => {
                             e.stopPropagation();
                             navigate(editUrl);
@@ -159,7 +159,7 @@ export default function CoursesListPage() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="text-zinc-500 hover:text-red-400 px-1.5 h-7"
+                          className="text-gray-500 dark:text-zinc-500 hover:text-red-400 px-1.5 h-7"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleDelete(course.id);
@@ -176,13 +176,13 @@ export default function CoursesListPage() {
           )})}
         </div>
       ) : (
-        <Card className="bg-zinc-900/50 backdrop-blur-md border-zinc-800">
+        <Card className="bg-white/90 dark:bg-zinc-900/50 backdrop-blur-md border-gray-200 dark:border-gray-200 dark:border-zinc-800 shadow-sm dark:shadow-none">
           <CardContent className="py-16 text-center">
-            <GraduationCap className="w-16 h-16 text-zinc-700 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-zinc-300 mb-2" style={{ fontFamily: 'Space Grotesk' }}>
+            <GraduationCap className="w-16 h-16 text-gray-300 dark:text-zinc-700 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-700 dark:text-zinc-300 mb-2" style={{ fontFamily: 'Space Grotesk' }}>
               Aucun cours disponible
             </h3>
-            <p className="text-sm text-zinc-500 max-w-md mx-auto">
+            <p className="text-sm text-gray-500 dark:text-zinc-500 max-w-md mx-auto">
               {isAdmin
                 ? 'Creez des cours pedagogiques pour accompagner vos exercices labs.'
                 : 'Les cours pedagogiques seront bientot disponibles pour votre formation.'}

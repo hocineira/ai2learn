@@ -208,7 +208,7 @@ export default function CourseCreatePage() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6" data-testid="course-create-page">
-      <Button variant="ghost" className="text-zinc-400 hover:text-cyan-400 -ml-3" onClick={() => navigate('/courses')}>
+      <Button variant="ghost" className="text-gray-500 dark:text-zinc-400 hover:text-cyan-400 -ml-3" onClick={() => navigate('/courses')}>
         <ArrowLeft className="w-4 h-4 mr-2" /> Retour aux cours
       </Button>
 
@@ -216,27 +216,27 @@ export default function CourseCreatePage() {
         <h1 className="text-2xl md:text-3xl font-bold tracking-tight" style={{ fontFamily: 'Space Grotesk' }}>
           {existingCourse ? 'Modifier le' : 'Creer un'} <span className="text-gradient">cours</span>
         </h1>
-        <p className="text-zinc-500 mt-1">
+        <p className="text-gray-500 dark:text-zinc-500 mt-1">
           Creez un contenu pedagogique, avec ou sans exercice lab associe
         </p>
       </div>
 
       {/* Title */}
-      <Card className="bg-zinc-900/50 backdrop-blur-md border-zinc-800">
+      <Card className="bg-white/90 dark:bg-zinc-900/50 backdrop-blur-md border-gray-200 dark:border-gray-200 dark:border-zinc-800 shadow-sm dark:shadow-none">
         <CardContent className="pt-6">
-          <label className="text-xs font-mono text-zinc-500 uppercase tracking-wider mb-2 block">Titre du cours *</label>
+          <label className="text-xs font-mono text-gray-500 dark:text-zinc-500 uppercase tracking-wider mb-2 block">Titre du cours *</label>
           <Input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="Ex: Introduction au DNS sous Windows Server"
-            className="bg-zinc-900 border-zinc-700 text-zinc-200 focus:border-cyan-500"
+            className="bg-gray-50 dark:bg-zinc-900 border-gray-300 dark:border-gray-300 dark:border-zinc-700 text-gray-800 dark:text-zinc-200 focus:border-cyan-500"
             data-testid="course-title-input"
           />
         </CardContent>
       </Card>
 
       {/* Formation & Category */}
-      <Card className="bg-zinc-900/50 backdrop-blur-md border-zinc-800">
+      <Card className="bg-white/90 dark:bg-zinc-900/50 backdrop-blur-md border-gray-200 dark:border-gray-200 dark:border-zinc-800 shadow-sm dark:shadow-none">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm flex items-center gap-2 text-cyan-400" style={{ fontFamily: 'Space Grotesk' }}>
             <GraduationCap className="w-4 h-4" /> Formation et categorie
@@ -245,14 +245,14 @@ export default function CourseCreatePage() {
         <CardContent className="space-y-3">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="text-xs text-zinc-500 mb-1 block">Formation</label>
+              <label className="text-xs text-gray-500 dark:text-zinc-500 mb-1 block">Formation</label>
               <Select value={formation} onValueChange={setFormation}>
-                <SelectTrigger className="bg-zinc-900 border-zinc-700 text-zinc-200 text-sm">
+                <SelectTrigger className="bg-gray-50 dark:bg-zinc-900 border-gray-300 dark:border-gray-300 dark:border-zinc-700 text-gray-800 dark:text-zinc-200 text-sm">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-zinc-900 border-zinc-800">
+                <SelectContent className="bg-gray-50 dark:bg-zinc-900 border-gray-200 dark:border-gray-200 dark:border-zinc-800">
                   {formations.map(f => (
-                    <SelectItem key={f.id} value={f.id} className="text-zinc-200 text-sm">
+                    <SelectItem key={f.id} value={f.id} className="text-gray-800 dark:text-zinc-200 text-sm">
                       <span className="flex items-center gap-2">
                         {f.id === 'bts-sio-sisr'
                           ? <GraduationCap className="w-3 h-3 text-cyan-400" />
@@ -266,15 +266,15 @@ export default function CourseCreatePage() {
               </Select>
             </div>
             <div>
-              <label className="text-xs text-zinc-500 mb-1 block">Categorie (optionnel)</label>
+              <label className="text-xs text-gray-500 dark:text-zinc-500 mb-1 block">Categorie (optionnel)</label>
               <Select value={category || '__none'} onValueChange={(v) => setCategory(v === '__none' ? '' : v)}>
-                <SelectTrigger className="bg-zinc-900 border-zinc-700 text-zinc-200 text-sm">
+                <SelectTrigger className="bg-gray-50 dark:bg-zinc-900 border-gray-300 dark:border-gray-300 dark:border-zinc-700 text-gray-800 dark:text-zinc-200 text-sm">
                   <SelectValue placeholder="Choisir une categorie..." />
                 </SelectTrigger>
-                <SelectContent className="bg-zinc-900 border-zinc-800">
-                  <SelectItem value="__none" className="text-zinc-500 text-sm">Aucune categorie</SelectItem>
+                <SelectContent className="bg-gray-50 dark:bg-zinc-900 border-gray-200 dark:border-gray-200 dark:border-zinc-800">
+                  <SelectItem value="__none" className="text-gray-500 dark:text-zinc-500 text-sm">Aucune categorie</SelectItem>
                   {categories.map(c => (
-                    <SelectItem key={c.id} value={c.id} className="text-zinc-200 text-sm">
+                    <SelectItem key={c.id} value={c.id} className="text-gray-800 dark:text-zinc-200 text-sm">
                       {c.name}
                     </SelectItem>
                   ))}
@@ -286,29 +286,29 @@ export default function CourseCreatePage() {
       </Card>
 
       {/* Exercise Link (Optional) */}
-      <Card className="bg-zinc-900/50 backdrop-blur-md border-zinc-800">
+      <Card className="bg-white/90 dark:bg-zinc-900/50 backdrop-blur-md border-gray-200 dark:border-gray-200 dark:border-zinc-800 shadow-sm dark:shadow-none">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm flex items-center gap-2 text-orange-400" style={{ fontFamily: 'Space Grotesk' }}>
             <Link2 className="w-4 h-4" /> Exercice Lab associe
-            <Badge className="bg-zinc-800 text-zinc-500 border-zinc-700 text-[10px] ml-2">Optionnel</Badge>
+            <Badge className="bg-zinc-800 text-gray-500 dark:text-zinc-500 border-gray-300 dark:border-zinc-700 text-[10px] ml-2">Optionnel</Badge>
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-xs text-zinc-500 mb-3">
+          <p className="text-xs text-gray-500 dark:text-zinc-500 mb-3">
             Vous pouvez associer ce cours a un exercice lab maintenant ou plus tard.
           </p>
           <div className="flex items-center gap-2">
             <div className="flex-1">
               <Select value={selectedExercise || '__none'} onValueChange={(v) => setSelectedExercise(v === '__none' ? '' : v)}>
-                <SelectTrigger className="bg-zinc-900 border-zinc-700 text-zinc-200" data-testid="select-exercise">
+                <SelectTrigger className="bg-gray-50 dark:bg-zinc-900 border-gray-300 dark:border-gray-300 dark:border-zinc-700 text-gray-800 dark:text-zinc-200" data-testid="select-exercise">
                   <SelectValue placeholder="Aucun exercice lab (cours independant)" />
                 </SelectTrigger>
-                <SelectContent className="bg-zinc-900 border-zinc-800">
-                  <SelectItem value="__none" className="text-zinc-500">
+                <SelectContent className="bg-gray-50 dark:bg-zinc-900 border-gray-200 dark:border-gray-200 dark:border-zinc-800">
+                  <SelectItem value="__none" className="text-gray-500 dark:text-zinc-500">
                     Aucun exercice (cours independant)
                   </SelectItem>
                   {exercises.map(ex => (
-                    <SelectItem key={ex.id} value={ex.id} className="text-zinc-200">
+                    <SelectItem key={ex.id} value={ex.id} className="text-gray-800 dark:text-zinc-200">
                       <span className="flex items-center gap-2">
                         <Monitor className="w-3 h-3 text-orange-400" />
                         {ex.title}
@@ -322,7 +322,7 @@ export default function CourseCreatePage() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-zinc-500 hover:text-red-400 px-2"
+                className="text-gray-500 dark:text-zinc-500 hover:text-red-400 px-2"
                 onClick={handleUnlinkExercise}
                 title="Dissocier l'exercice"
               >
@@ -339,19 +339,19 @@ export default function CourseCreatePage() {
       </Card>
 
       {/* Video Upload */}
-      <Card className="bg-zinc-900/50 backdrop-blur-md border-zinc-800">
+      <Card className="bg-white/90 dark:bg-zinc-900/50 backdrop-blur-md border-gray-200 dark:border-gray-200 dark:border-zinc-800 shadow-sm dark:shadow-none">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm flex items-center gap-2 text-cyan-400" style={{ fontFamily: 'Space Grotesk' }}>
             <Video className="w-4 h-4" /> Video du cours (MP4)
-            <Badge className="bg-zinc-800 text-zinc-500 border-zinc-700 text-[10px] ml-2">Optionnel</Badge>
+            <Badge className="bg-zinc-800 text-gray-500 dark:text-zinc-500 border-gray-300 dark:border-zinc-700 text-[10px] ml-2">Optionnel</Badge>
           </CardTitle>
         </CardHeader>
         <CardContent>
           {videoFilename ? (
-            <div className="flex items-center gap-3 p-4 bg-zinc-800/50 rounded-lg border border-emerald-500/20">
+            <div className="flex items-center gap-3 p-4 bg-gray-100 dark:bg-zinc-800/50 rounded-lg border border-emerald-500/20">
               <FileVideo className="w-8 h-8 text-emerald-400" />
               <div className="flex-1 min-w-0">
-                <p className="text-sm text-zinc-200 font-medium truncate">{videoFilename}</p>
+                <p className="text-sm text-gray-800 dark:text-zinc-200 font-medium truncate">{videoFilename}</p>
                 <p className="text-xs text-emerald-400 flex items-center gap-1">
                   <CheckCircle2 className="w-3 h-3" /> Video uploadee
                 </p>
@@ -372,13 +372,13 @@ export default function CourseCreatePage() {
               />
               <label
                 htmlFor="video-upload"
-                className={`flex flex-col items-center gap-3 p-8 border-2 border-dashed ${uploading ? 'border-cyan-500/30 bg-cyan-500/5' : 'border-zinc-700 hover:border-cyan-500/30'} rounded-lg cursor-pointer transition-all`}
+                className={`flex flex-col items-center gap-3 p-8 border-2 border-dashed ${uploading ? 'border-cyan-500/30 bg-cyan-500/5' : 'border-gray-300 dark:border-zinc-700 hover:border-cyan-500/30'} rounded-lg cursor-pointer transition-all`}
               >
                 {uploading ? (
                   <>
                     <Loader2 className="w-10 h-10 text-cyan-400 animate-spin" />
                     <span className="text-sm text-cyan-400">Upload en cours... {uploadProgress}%</span>
-                    <div className="w-full max-w-xs bg-zinc-800 rounded-full h-2">
+                    <div className="w-full max-w-xs bg-gray-200 dark:bg-zinc-800 rounded-full h-2">
                       <div
                         className="bg-gradient-to-r from-cyan-500 to-violet-500 h-2 rounded-full transition-all"
                         style={{ width: `${uploadProgress}%` }}
@@ -387,11 +387,11 @@ export default function CourseCreatePage() {
                   </>
                 ) : (
                   <>
-                    <Upload className="w-10 h-10 text-zinc-500" />
-                    <span className="text-sm text-zinc-400">
+                    <Upload className="w-10 h-10 text-gray-500 dark:text-zinc-500" />
+                    <span className="text-sm text-gray-500 dark:text-zinc-400">
                       Cliquez ou glissez un fichier video MP4
                     </span>
-                    <span className="text-xs text-zinc-600">
+                    <span className="text-xs text-gray-400 dark:text-zinc-600">
                       Formats acceptes: MP4, WebM, OGG
                     </span>
                   </>
@@ -403,7 +403,7 @@ export default function CourseCreatePage() {
       </Card>
 
       {/* Objectives */}
-      <Card className="bg-zinc-900/50 backdrop-blur-md border-zinc-800">
+      <Card className="bg-white/90 dark:bg-zinc-900/50 backdrop-blur-md border-gray-200 dark:border-gray-200 dark:border-zinc-800 shadow-sm dark:shadow-none">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm flex items-center gap-2 text-cyan-400" style={{ fontFamily: 'Space Grotesk' }}>
             <Target className="w-4 h-4" /> Objectifs
@@ -416,7 +416,7 @@ export default function CourseCreatePage() {
                 value={obj}
                 onChange={(e) => updateObjective(i, e.target.value)}
                 placeholder={`Objectif ${i + 1}`}
-                className="bg-zinc-900 border-zinc-700 text-zinc-200 text-sm focus:border-cyan-500"
+                className="bg-gray-50 dark:bg-zinc-900 border-gray-300 dark:border-gray-300 dark:border-zinc-700 text-gray-800 dark:text-zinc-200 text-sm focus:border-cyan-500"
               />
               {objectives.length > 1 && (
                 <Button variant="ghost" size="sm" className="text-red-400 hover:text-red-300 hover:bg-red-500/10 px-2" onClick={() => removeObjective(i)}>
@@ -432,7 +432,7 @@ export default function CourseCreatePage() {
       </Card>
 
       {/* Prerequisites */}
-      <Card className="bg-zinc-900/50 backdrop-blur-md border-zinc-800">
+      <Card className="bg-white/90 dark:bg-zinc-900/50 backdrop-blur-md border-gray-200 dark:border-gray-200 dark:border-zinc-800 shadow-sm dark:shadow-none">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm flex items-center gap-2 text-violet-400" style={{ fontFamily: 'Space Grotesk' }}>
             <ListChecks className="w-4 h-4" /> Prerequis
@@ -445,7 +445,7 @@ export default function CourseCreatePage() {
                 value={pre}
                 onChange={(e) => updatePrerequisite(i, e.target.value)}
                 placeholder={`Prerequis ${i + 1}`}
-                className="bg-zinc-900 border-zinc-700 text-zinc-200 text-sm focus:border-violet-500"
+                className="bg-gray-50 dark:bg-zinc-900 border-gray-300 dark:border-gray-300 dark:border-zinc-700 text-gray-800 dark:text-zinc-200 text-sm focus:border-violet-500"
               />
               {prerequisites.length > 1 && (
                 <Button variant="ghost" size="sm" className="text-red-400 hover:text-red-300 hover:bg-red-500/10 px-2" onClick={() => removePrerequisite(i)}>
@@ -461,36 +461,36 @@ export default function CourseCreatePage() {
       </Card>
 
       {/* Duration */}
-      <Card className="bg-zinc-900/50 backdrop-blur-md border-zinc-800">
+      <Card className="bg-white/90 dark:bg-zinc-900/50 backdrop-blur-md border-gray-200 dark:border-gray-200 dark:border-zinc-800 shadow-sm dark:shadow-none">
         <CardContent className="pt-6">
-          <label className="text-xs font-mono text-zinc-500 uppercase tracking-wider mb-2 block">
+          <label className="text-xs font-mono text-gray-500 dark:text-zinc-500 uppercase tracking-wider mb-2 block">
             <Clock className="w-3 h-3 inline mr-1" /> Duree estimee de lecture
           </label>
           <Input
             value={durationEstimate}
             onChange={(e) => setDurationEstimate(e.target.value)}
             placeholder="Ex: 15 min, 1h30"
-            className="bg-zinc-900 border-zinc-700 text-zinc-200 focus:border-cyan-500 max-w-xs"
+            className="bg-gray-50 dark:bg-zinc-900 border-gray-300 dark:border-gray-300 dark:border-zinc-700 text-gray-800 dark:text-zinc-200 focus:border-cyan-500 max-w-xs"
           />
         </CardContent>
       </Card>
 
       {/* Content */}
-      <Card className="bg-zinc-900/50 backdrop-blur-md border-zinc-800">
+      <Card className="bg-white/90 dark:bg-zinc-900/50 backdrop-blur-md border-gray-200 dark:border-gray-200 dark:border-zinc-800 shadow-sm dark:shadow-none">
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm flex items-center gap-2 text-zinc-300" style={{ fontFamily: 'Space Grotesk' }}>
+          <CardTitle className="text-sm flex items-center gap-2 text-gray-700 dark:text-zinc-300" style={{ fontFamily: 'Space Grotesk' }}>
             <BookOpen className="w-4 h-4 text-cyan-400" /> Contenu du cours
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-xs text-zinc-600 mb-2">
+          <p className="text-xs text-gray-400 dark:text-zinc-600 mb-2">
             Supporte le formatage basique: ## Titre, ### Sous-titre, **gras**, - liste, `code`
           </p>
           <textarea
             value={content}
             onChange={(e) => setContent(e.target.value)}
             placeholder={"Redigez le contenu du cours ici...\n\n## Introduction\n\nLe DNS (Domain Name System) est un service reseau fondamental...\n\n### Objectifs de ce TP\n\n- Installer le role DNS sur Windows Server\n- Configurer une zone de recherche directe\n- Tester la resolution avec nslookup\n\n**Important:** Assurez-vous de bien comprendre les concepts avant de demarrer le lab."}
-            className="w-full min-h-[400px] bg-zinc-900/50 border border-zinc-700 rounded-lg p-4 text-sm text-zinc-200 placeholder:text-zinc-600 focus:border-cyan-500/50 focus:outline-none resize-y font-mono"
+            className="w-full min-h-[400px] bg-white dark:bg-zinc-900/50 border border-gray-300 dark:border-zinc-700 rounded-lg p-4 text-sm text-gray-800 dark:text-zinc-200 placeholder:text-gray-400 dark:text-zinc-600 focus:border-cyan-500/50 focus:outline-none resize-y font-mono"
             data-testid="course-content-input"
           />
         </CardContent>
@@ -510,7 +510,7 @@ export default function CourseCreatePage() {
             <><Save className="w-5 h-5 mr-2" /> {existingCourse ? 'Mettre a jour' : 'Creer le cours'}</>
           )}
         </Button>
-        <Button variant="outline" className="border-zinc-700 text-zinc-400" onClick={() => navigate('/courses')}>
+        <Button variant="outline" className="border-gray-300 dark:border-zinc-700 text-gray-500 dark:text-zinc-400" onClick={() => navigate('/courses')}>
           Annuler
         </Button>
       </div>

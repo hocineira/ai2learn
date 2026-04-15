@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
+import { ThemeProvider, useTheme } from '@/contexts/ThemeContext';
 import { Toaster } from '@/components/ui/sonner';
 import { Sidebar } from '@/components/Sidebar';
 import LoginPage from '@/pages/LoginPage';
@@ -26,7 +27,7 @@ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const ProtectedRoute = ({ children, roles }) => {
   const { user, loading } = useAuth();
-  if (loading) return <div className="min-h-screen bg-[#09090b] flex items-center justify-center text-zinc-500">Chargement...</div>;
+  if (loading) return <div className="min-h-screen th-page flex items-center justify-center th-text-muted">Chargement...</div>;
   if (!user) return <Navigate to="/login" replace />;
   if (roles && !roles.includes(user.role)) return <Navigate to="/dashboard" replace />;
   return <Sidebar>{children}</Sidebar>;
@@ -41,7 +42,7 @@ const DashboardRouter = () => {
 
 const AuthGuard = ({ children }) => {
   const { user, loading } = useAuth();
-  if (loading) return <div className="min-h-screen bg-[#09090b] flex items-center justify-center text-zinc-500">Chargement...</div>;
+  if (loading) return <div className="min-h-screen th-page flex items-center justify-center th-text-muted">Chargement...</div>;
   if (user) return <Navigate to="/dashboard" replace />;
   return children;
 };
@@ -53,34 +54,41 @@ const SeedInitializer = () => {
   return null;
 };
 
+const ThemedToaster = () => {
+  const { isDark } = useTheme();
+  return <Toaster theme={isDark ? "dark" : "light"} position="top-right" />;
+};
+
 function App() {
   return (
-    <BrowserRouter>
-      <AuthProvider>
-        <SeedInitializer />
-        <Toaster theme="dark" position="top-right" />
-        <Routes>
-          <Route path="/login" element={<AuthGuard><LoginPage /></AuthGuard>} />
-          <Route path="/dashboard" element={<ProtectedRoute><DashboardRouter /></ProtectedRoute>} />
-          <Route path="/exercises" element={<ProtectedRoute><ExercisesPage /></ProtectedRoute>} />
-          <Route path="/exercises/create" element={<ProtectedRoute roles={['admin', 'formateur']}><ExerciseCreate /></ProtectedRoute>} />
-          <Route path="/exercises/:id" element={<ProtectedRoute><ExerciseTake /></ProtectedRoute>} />
-          <Route path="/users" element={<ProtectedRoute roles={['admin']}><UsersPage /></ProtectedRoute>} />
-          <Route path="/tracking" element={<ProtectedRoute roles={['admin', 'formateur']}><TrackingPage /></ProtectedRoute>} />
-          <Route path="/results" element={<ProtectedRoute><ResultsPage /></ProtectedRoute>} />
-          <Route path="/results/:id" element={<ProtectedRoute><ResultsPage /></ProtectedRoute>} />
-          <Route path="/submissions" element={<ProtectedRoute roles={['admin', 'formateur']}><SubmissionsPage /></ProtectedRoute>} />
-          <Route path="/labs" element={<ProtectedRoute><LabsListPage /></ProtectedRoute>} />
-          <Route path="/labs/:exerciseId" element={<ProtectedRoute><LabPage /></ProtectedRoute>} />
-          <Route path="/courses" element={<ProtectedRoute><CoursesListPage /></ProtectedRoute>} />
-          <Route path="/courses/create" element={<ProtectedRoute roles={['admin', 'formateur']}><CourseCreatePage /></ProtectedRoute>} />
-          <Route path="/courses/view/:courseId" element={<ProtectedRoute><CourseViewPage /></ProtectedRoute>} />
-          <Route path="/courses/:exerciseId" element={<ProtectedRoute><CoursePage /></ProtectedRoute>} />
-          <Route path="/stats" element={<ProtectedRoute roles={['admin']}><AdminDashboard /></ProtectedRoute>} />
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
-        </Routes>
-      </AuthProvider>
-    </BrowserRouter>
+    <ThemeProvider>
+      <BrowserRouter>
+        <AuthProvider>
+          <SeedInitializer />
+          <ThemedToaster />
+          <Routes>
+            <Route path="/login" element={<AuthGuard><LoginPage /></AuthGuard>} />
+            <Route path="/dashboard" element={<ProtectedRoute><DashboardRouter /></ProtectedRoute>} />
+            <Route path="/exercises" element={<ProtectedRoute><ExercisesPage /></ProtectedRoute>} />
+            <Route path="/exercises/create" element={<ProtectedRoute roles={['admin', 'formateur']}><ExerciseCreate /></ProtectedRoute>} />
+            <Route path="/exercises/:id" element={<ProtectedRoute><ExerciseTake /></ProtectedRoute>} />
+            <Route path="/users" element={<ProtectedRoute roles={['admin']}><UsersPage /></ProtectedRoute>} />
+            <Route path="/tracking" element={<ProtectedRoute roles={['admin', 'formateur']}><TrackingPage /></ProtectedRoute>} />
+            <Route path="/results" element={<ProtectedRoute><ResultsPage /></ProtectedRoute>} />
+            <Route path="/results/:id" element={<ProtectedRoute><ResultsPage /></ProtectedRoute>} />
+            <Route path="/submissions" element={<ProtectedRoute roles={['admin', 'formateur']}><SubmissionsPage /></ProtectedRoute>} />
+            <Route path="/labs" element={<ProtectedRoute><LabsListPage /></ProtectedRoute>} />
+            <Route path="/labs/:exerciseId" element={<ProtectedRoute><LabPage /></ProtectedRoute>} />
+            <Route path="/courses" element={<ProtectedRoute><CoursesListPage /></ProtectedRoute>} />
+            <Route path="/courses/create" element={<ProtectedRoute roles={['admin', 'formateur']}><CourseCreatePage /></ProtectedRoute>} />
+            <Route path="/courses/view/:courseId" element={<ProtectedRoute><CourseViewPage /></ProtectedRoute>} />
+            <Route path="/courses/:exerciseId" element={<ProtectedRoute><CoursePage /></ProtectedRoute>} />
+            <Route path="/stats" element={<ProtectedRoute roles={['admin']}><AdminDashboard /></ProtectedRoute>} />
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          </Routes>
+        </AuthProvider>
+      </BrowserRouter>
+    </ThemeProvider>
   );
 }
 

@@ -175,12 +175,12 @@ export default function LabPage() {
     }
   }, [lab?.status, hasIP]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (loading) return <div className="text-zinc-500 text-center py-20">Chargement...</div>;
+  if (loading) return <div className="text-gray-500 dark:text-zinc-500 text-center py-20">Chargement...</div>;
   if (!exercise) return null;
 
   return (
     <div className="space-y-6 max-w-4xl" data-testid="lab-page">
-      <Button variant="ghost" className="text-zinc-400 hover:text-cyan-400 -ml-3" onClick={() => navigate('/labs')}>
+      <Button variant="ghost" className="text-gray-500 dark:text-zinc-400 hover:text-cyan-400 -ml-3" onClick={() => navigate('/labs')}>
         <ArrowLeft className="w-4 h-4 mr-2" /> Retour aux labs
       </Button>
 
@@ -191,7 +191,7 @@ export default function LabPage() {
             <Monitor className="w-3 h-3 mr-1" /> Lab pratique
           </Badge>
           {exercise.time_limit > 0 && (
-            <Badge className="bg-zinc-800 text-zinc-400 border-zinc-700">
+            <Badge className="bg-zinc-800 text-gray-500 dark:text-zinc-400 border-gray-300 dark:border-zinc-700">
               <Clock className="w-3 h-3 mr-1" /> {exercise.time_limit} min
             </Badge>
           )}
@@ -199,19 +199,19 @@ export default function LabPage() {
         <h1 className="text-2xl md:text-3xl font-bold tracking-tight" style={{ fontFamily: 'Space Grotesk' }}>
           {exercise.title}
         </h1>
-        <p className="text-zinc-500 mt-1">{exercise.description}</p>
+        <p className="text-gray-500 dark:text-zinc-500 mt-1">{exercise.description}</p>
       </div>
 
       {/* Instructions */}
       {exercise.lab_instructions && (
-        <Card className="bg-zinc-900/50 backdrop-blur-md border-zinc-800">
+        <Card className="bg-white/90 dark:bg-zinc-900/50 backdrop-blur-md border-gray-200 dark:border-gray-200 dark:border-zinc-800 shadow-sm dark:shadow-none">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2 text-cyan-400" style={{ fontFamily: 'Space Grotesk' }}>
               <AlertCircle className="w-4 h-4" /> Consignes du lab
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-sm text-zinc-300 leading-relaxed whitespace-pre-wrap" data-testid="lab-instructions">
+            <div className="text-sm text-gray-700 dark:text-zinc-300 leading-relaxed whitespace-pre-wrap" data-testid="lab-instructions">
               {exercise.lab_instructions}
             </div>
           </CardContent>
@@ -219,7 +219,7 @@ export default function LabPage() {
       )}
 
       {/* Lab Status */}
-      <Card className={`bg-zinc-900/50 backdrop-blur-md ${isRunning && hasIP ? 'border-emerald-500/30' : isProvisioning ? 'border-cyan-500/30' : isError ? 'border-red-500/30' : 'border-zinc-800'}`}>
+      <Card className={`bg-zinc-900/50 backdrop-blur-md ${isRunning && hasIP ? 'border-emerald-500/30' : isProvisioning ? 'border-cyan-500/30' : isError ? 'border-red-500/30' : 'border-gray-200 dark:border-zinc-800'}`}>
         <CardContent className="p-6">
 
           {/* Error state */}
@@ -231,7 +231,7 @@ export default function LabPage() {
               <h3 className="text-lg font-semibold text-red-400 mb-2" style={{ fontFamily: 'Space Grotesk' }}>
                 Erreur de provisionnement
               </h3>
-              <p className="text-sm text-zinc-500 mb-6">
+              <p className="text-sm text-gray-500 dark:text-zinc-500 mb-6">
                 {lab?.vm_ip || 'Une erreur est survenue. Veuillez reessayer.'}
               </p>
               <Button
@@ -247,13 +247,13 @@ export default function LabPage() {
           {/* Not started */}
           {!isRunning && !isProvisioning && !isError && (
             <div className="text-center py-8" data-testid="lab-not-started">
-              <div className="w-16 h-16 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center mx-auto mb-4">
-                <Monitor className="w-8 h-8 text-zinc-500" />
+              <div className="w-16 h-16 rounded-full bg-gray-200 dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 flex items-center justify-center mx-auto mb-4">
+                <Monitor className="w-8 h-8 text-gray-500 dark:text-zinc-500" />
               </div>
-              <h3 className="text-lg font-semibold text-zinc-200 mb-2" style={{ fontFamily: 'Space Grotesk' }}>
+              <h3 className="text-lg font-semibold text-gray-800 dark:text-zinc-200 mb-2" style={{ fontFamily: 'Space Grotesk' }}>
                 Lab non demarre
               </h3>
-              <p className="text-sm text-zinc-500 mb-6 max-w-md mx-auto">
+              <p className="text-sm text-gray-500 dark:text-zinc-500 mb-6 max-w-md mx-auto">
                 Cliquez sur le bouton ci-dessous pour provisionner une machine virtuelle Windows Server dediee. Cela prend environ 2 a 4 minutes.
               </p>
               <Button
@@ -275,15 +275,15 @@ export default function LabPage() {
           {isProvisioning && (
             <div className="text-center py-8" data-testid="lab-provisioning">
               <Loader2 className="w-14 h-14 text-cyan-400 mx-auto mb-4 animate-spin" />
-              <h3 className="text-lg font-semibold text-zinc-200 mb-2" style={{ fontFamily: 'Space Grotesk' }}>
+              <h3 className="text-lg font-semibold text-gray-800 dark:text-zinc-200 mb-2" style={{ fontFamily: 'Space Grotesk' }}>
                 {isCloning ? 'Clonage de la VM en cours...' : 'Demarrage de la VM...'}
               </h3>
-              <p className="text-sm text-zinc-500 mb-4">
+              <p className="text-sm text-gray-500 dark:text-zinc-500 mb-4">
                 {isCloning
                   ? 'Les fichiers de la machine virtuelle sont en cours de copie. Veuillez patienter (1-3 min).'
                   : 'La VM demarre et configure le reseau. Encore quelques instants...'}
               </p>
-              <div className="flex items-center justify-center gap-6 text-xs text-zinc-500">
+              <div className="flex items-center justify-center gap-6 text-xs text-gray-500 dark:text-zinc-500">
                 <span>VM ID : {lab?.vmid}</span>
                 <span>Nom : {lab?.vm_name}</span>
                 <Badge className={isCloning ? 'bg-amber-500/20 text-amber-400 border-amber-500/30 text-[10px]' : 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30 text-[10px]'}>
@@ -298,7 +298,7 @@ export default function LabPage() {
                 <div className="w-16 h-0.5 bg-zinc-700" />
                 <div className="w-3 h-3 rounded-full bg-zinc-700" />
               </div>
-              <div className="mt-2 flex items-center justify-center gap-8 text-[10px] text-zinc-600">
+              <div className="mt-2 flex items-center justify-center gap-8 text-[10px] text-gray-400 dark:text-zinc-600">
                 <span>Clone</span>
                 <span>Boot</span>
                 <span>Pret</span>
@@ -310,13 +310,13 @@ export default function LabPage() {
           {isRunning && !hasAccess && (
             <div className="text-center py-8" data-testid="lab-starting">
               <Loader2 className="w-12 h-12 text-cyan-400 mx-auto mb-4 animate-spin" />
-              <h3 className="text-lg font-semibold text-zinc-200 mb-2" style={{ fontFamily: 'Space Grotesk' }}>
+              <h3 className="text-lg font-semibold text-gray-800 dark:text-zinc-200 mb-2" style={{ fontFamily: 'Space Grotesk' }}>
                 En attente de l'adresse IP...
               </h3>
-              <p className="text-sm text-zinc-500">
+              <p className="text-sm text-gray-500 dark:text-zinc-500">
                 La VM est demarree, le reseau se configure. Encore quelques secondes.
               </p>
-              <div className="mt-4 flex items-center justify-center gap-4 text-xs text-zinc-500">
+              <div className="mt-4 flex items-center justify-center gap-4 text-xs text-gray-500 dark:text-zinc-500">
                 <span>VM ID : {lab.vmid}</span>
                 <span>Nom : {lab.vm_name}</span>
               </div>
@@ -336,21 +336,21 @@ export default function LabPage() {
               </div>
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-                <div className="bg-zinc-800/50 rounded-lg p-3">
-                  <p className="text-[10px] font-mono text-zinc-500 uppercase">VM ID</p>
-                  <p className="text-sm font-medium text-zinc-200">{lab.vmid}</p>
+                <div className="bg-gray-100 dark:bg-zinc-800/50 rounded-lg p-3">
+                  <p className="text-[10px] font-mono text-gray-500 dark:text-zinc-500 uppercase">VM ID</p>
+                  <p className="text-sm font-medium text-gray-800 dark:text-zinc-200">{lab.vmid}</p>
                 </div>
-                <div className="bg-zinc-800/50 rounded-lg p-3">
-                  <p className="text-[10px] font-mono text-zinc-500 uppercase">IP</p>
-                  <p className="text-sm font-medium text-zinc-200">{hasIP ? lab.vm_ip : 'Console directe'}</p>
+                <div className="bg-gray-100 dark:bg-zinc-800/50 rounded-lg p-3">
+                  <p className="text-[10px] font-mono text-gray-500 dark:text-zinc-500 uppercase">IP</p>
+                  <p className="text-sm font-medium text-gray-800 dark:text-zinc-200">{hasIP ? lab.vm_ip : 'Console directe'}</p>
                 </div>
-                <div className="bg-zinc-800/50 rounded-lg p-3">
-                  <p className="text-[10px] font-mono text-zinc-500 uppercase">Nom</p>
-                  <p className="text-sm font-medium text-zinc-200 truncate">{lab.vm_name}</p>
+                <div className="bg-gray-100 dark:bg-zinc-800/50 rounded-lg p-3">
+                  <p className="text-[10px] font-mono text-gray-500 dark:text-zinc-500 uppercase">Nom</p>
+                  <p className="text-sm font-medium text-gray-800 dark:text-zinc-200 truncate">{lab.vm_name}</p>
                 </div>
-                <div className="bg-zinc-800/50 rounded-lg p-3">
-                  <p className="text-[10px] font-mono text-zinc-500 uppercase">Demarre</p>
-                  <p className="text-sm font-medium text-zinc-200">
+                <div className="bg-gray-100 dark:bg-zinc-800/50 rounded-lg p-3">
+                  <p className="text-[10px] font-mono text-gray-500 dark:text-zinc-500 uppercase">Demarre</p>
+                  <p className="text-sm font-medium text-gray-800 dark:text-zinc-200">
                     {lab.started_at ? new Date(lab.started_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '-'}
                   </p>
                 </div>
@@ -395,7 +395,7 @@ export default function LabPage() {
 
       {/* Questions & Soumission */}
       {exercise.questions?.length > 0 && (
-        <Card className="bg-zinc-900/50 backdrop-blur-md border-zinc-800">
+        <Card className="bg-white/90 dark:bg-zinc-900/50 backdrop-blur-md border-gray-200 dark:border-gray-200 dark:border-zinc-800 shadow-sm dark:shadow-none">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2" style={{ fontFamily: 'Space Grotesk' }}>
               <CheckCircle2 className="w-4 h-4 text-cyan-400" /> Validation du Lab ({exercise.questions.length} question{exercise.questions.length > 1 ? 's' : ''})
@@ -410,12 +410,12 @@ export default function LabPage() {
                   <div>
                     <p className="text-sm font-medium text-emerald-400">Lab soumis !</p>
                     {submitted.graded && (
-                      <p className="text-lg font-bold text-zinc-200" style={{ fontFamily: 'Space Grotesk' }}>
+                      <p className="text-lg font-bold text-gray-800 dark:text-zinc-200" style={{ fontFamily: 'Space Grotesk' }}>
                         Score : {submitted.score_20 != null ? submitted.score_20 : Math.round((submitted.score / Math.max(submitted.max_score, 1)) * 200) / 10}/20
-                        <span className="text-sm text-zinc-500 ml-2">({submitted.score}/{submitted.max_score} pts)</span>
+                        <span className="text-sm text-gray-500 dark:text-zinc-500 ml-2">({submitted.score}/{submitted.max_score} pts)</span>
                       </p>
                     )}
-                    {!submitted.graded && <p className="text-xs text-zinc-500">En attente de correction...</p>}
+                    {!submitted.graded && <p className="text-xs text-gray-500 dark:text-zinc-500">En attente de correction...</p>}
                   </div>
                 </div>
                 {submitted.ai_feedback && (
@@ -424,7 +424,7 @@ export default function LabPage() {
                       <Cpu className="w-4 h-4 text-cyan-400" />
                       <span className="text-xs font-medium text-cyan-400">Feedback IA</span>
                     </div>
-                    <p className="text-sm text-zinc-300">{submitted.ai_feedback}</p>
+                    <p className="text-sm text-gray-700 dark:text-zinc-300">{submitted.ai_feedback}</p>
                   </div>
                 )}
                 {submitted.vm_validation && submitted.vm_validation.length > 0 && (
@@ -441,7 +441,7 @@ export default function LabPage() {
                             : <AlertCircle className="w-3.5 h-3.5 text-red-400 flex-shrink-0" />
                           }
                           <span className={v.passed ? 'text-emerald-400' : 'text-red-400'}>{v.name}</span>
-                          <span className="text-zinc-600 ml-auto font-mono truncate max-w-[200px]">{v.actual}</span>
+                          <span className="text-gray-400 dark:text-zinc-600 ml-auto font-mono truncate max-w-[200px]">{v.actual}</span>
                         </div>
                       ))}
                     </div>
@@ -452,47 +452,47 @@ export default function LabPage() {
                 )}
                 <div className="space-y-3">
                   {submitted.answers?.map((a, i) => (
-                    <div key={i} className="p-3 rounded-lg bg-zinc-800/30 border border-zinc-800/50">
+                    <div key={i} className="p-3 rounded-lg bg-gray-50 dark:bg-zinc-800/30 border border-gray-200 dark:border-zinc-800/50">
                       <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs font-mono text-zinc-500">Q{i + 1}</span>
+                        <span className="text-xs font-mono text-gray-500 dark:text-zinc-500">Q{i + 1}</span>
                         <span className={`text-sm font-bold ${(a.points_earned || 0) > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                           {a.points_earned || 0} pts
                         </span>
                       </div>
-                      <p className="text-sm text-zinc-300 mb-1">{exercise.questions[i]?.question_text}</p>
-                      <p className="text-xs text-zinc-400 italic">Votre reponse : {a.answer}</p>
+                      <p className="text-sm text-gray-700 dark:text-zinc-300 mb-1">{exercise.questions[i]?.question_text}</p>
+                      <p className="text-xs text-gray-500 dark:text-zinc-400 italic">Votre reponse : {a.answer}</p>
                       {a.ai_feedback && (
                         <p className="text-xs text-cyan-400/80 mt-1"><Cpu className="w-3 h-3 inline mr-1" />{a.ai_feedback}</p>
                       )}
                     </div>
                   ))}
                 </div>
-                <Button className="mt-4 w-full bg-zinc-800 hover:bg-zinc-700 text-zinc-300" onClick={() => navigate(`/results/${submitted.id}`)}>
+                <Button className="mt-4 w-full bg-gray-200 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 text-gray-700 dark:text-zinc-300" onClick={() => navigate(`/results/${submitted.id}`)}>
                   Voir le detail du resultat
                 </Button>
               </div>
             ) : (
               /* Answer form */
               <div data-testid="lab-questions-form">
-                <p className="text-xs text-zinc-500 mb-4">
+                <p className="text-xs text-gray-500 dark:text-zinc-500 mb-4">
                   Repondez aux questions ci-dessous pour valider votre lab. La correction IA sera lancee automatiquement.
                 </p>
                 <div className="space-y-4">
                   {exercise.questions.map((q, i) => (
-                    <div key={q.id} className="p-4 rounded-lg bg-zinc-800/30 border border-zinc-800/50">
+                    <div key={q.id} className="p-4 rounded-lg bg-gray-50 dark:bg-zinc-800/30 border border-gray-200 dark:border-zinc-800/50">
                       <div className="flex items-center gap-2 mb-2">
-                        <span className="text-xs font-mono text-zinc-500">Q{i + 1}</span>
+                        <span className="text-xs font-mono text-gray-500 dark:text-zinc-500">Q{i + 1}</span>
                         <Badge className={q.question_type === 'qcm' ? 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30 text-[10px]' : 'bg-amber-500/15 text-amber-400 border-amber-500/30 text-[10px]'}>
                           {q.question_type === 'qcm' ? 'QCM' : 'Ouverte'}
                         </Badge>
-                        <span className="text-xs text-zinc-500 ml-auto">{q.points} pts</span>
+                        <span className="text-xs text-gray-500 dark:text-zinc-500 ml-auto">{q.points} pts</span>
                       </div>
-                      <p className="text-sm text-zinc-200 mb-3">{q.question_text}</p>
+                      <p className="text-sm text-gray-800 dark:text-zinc-200 mb-3">{q.question_text}</p>
 
                       {q.question_type === 'qcm' ? (
                         <div className="space-y-2">
                           {q.options?.map((opt, oi) => (
-                            <label key={oi} className={`flex items-center gap-3 p-2.5 rounded-lg border cursor-pointer transition-all ${answers[q.id] === opt ? 'bg-cyan-500/10 border-cyan-500/30 text-cyan-300' : 'bg-zinc-900/30 border-zinc-700 text-zinc-400 hover:border-zinc-600'}`}>
+                            <label key={oi} className={`flex items-center gap-3 p-2.5 rounded-lg border cursor-pointer transition-all ${answers[q.id] === opt ? 'bg-cyan-500/10 border-cyan-500/30 text-cyan-300' : 'bg-zinc-900/30 border-gray-300 dark:border-zinc-700 text-gray-500 dark:text-zinc-400 hover:border-zinc-600'}`}>
                               <input
                                 type="radio"
                                 name={`q-${q.id}`}
@@ -510,7 +510,7 @@ export default function LabPage() {
                         </div>
                       ) : (
                         <textarea
-                          className="w-full bg-zinc-900/50 border border-zinc-700 rounded-lg p-3 text-sm text-zinc-200 placeholder:text-zinc-600 focus:border-cyan-500/50 focus:outline-none resize-none"
+                          className="w-full bg-white dark:bg-zinc-900/50 border border-gray-300 dark:border-zinc-700 rounded-lg p-3 text-sm text-gray-800 dark:text-zinc-200 placeholder:text-gray-400 dark:text-zinc-600 focus:border-cyan-500/50 focus:outline-none resize-none"
                           rows={3}
                           placeholder="Votre reponse..."
                           value={answers[q.id] || ''}

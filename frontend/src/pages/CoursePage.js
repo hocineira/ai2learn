@@ -81,12 +81,12 @@ export default function CoursePage() {
   return (
     <div className="max-w-5xl mx-auto space-y-8 pb-12" data-testid="course-page">
       {/* Back Button */}
-      <Button variant="ghost" className="text-zinc-400 hover:text-cyan-400 -ml-3" onClick={() => navigate('/labs')}>
+      <Button variant="ghost" className="text-gray-500 dark:text-zinc-400 hover:text-cyan-400 -ml-3" onClick={() => navigate('/labs')}>
         <ArrowLeft className="w-4 h-4 mr-2" /> Retour aux labs
       </Button>
 
       {/* Hero Header */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-zinc-900 via-zinc-900/95 to-zinc-900/90 border border-zinc-800">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-zinc-900 via-zinc-900/95 to-zinc-900/90 border border-gray-200 dark:border-zinc-800">
         <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-transparent to-violet-500/5" />
         <div className="absolute top-0 right-0 w-96 h-96 bg-cyan-500/3 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
         <div className="absolute bottom-0 left-0 w-72 h-72 bg-violet-500/3 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
@@ -102,7 +102,7 @@ export default function CoursePage() {
               </Badge>
             )}
             {exercise.time_limit > 0 && (
-              <Badge className="bg-zinc-800 text-zinc-400 border-zinc-700">
+              <Badge className="bg-zinc-800 text-gray-500 dark:text-zinc-400 border-gray-300 dark:border-zinc-700">
                 <Clock className="w-3 h-3 mr-1" /> {exercise.time_limit} min
               </Badge>
             )}
@@ -117,12 +117,12 @@ export default function CoursePage() {
             <span className="text-gradient">{course.title}</span>
           </h1>
           
-          <p className="text-zinc-400 text-lg max-w-3xl leading-relaxed">
+          <p className="text-gray-500 dark:text-zinc-400 text-lg max-w-3xl leading-relaxed">
             {exercise.description}
           </p>
 
           {course.created_by_name && (
-            <p className="text-xs text-zinc-600 mt-4">
+            <p className="text-xs text-gray-400 dark:text-zinc-600 mt-4">
               Par {course.created_by_name} · {new Date(course.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
             </p>
           )}
@@ -132,7 +132,7 @@ export default function CoursePage() {
       {/* Objectives & Prerequisites */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {course.objectives && course.objectives.length > 0 && (
-          <Card className="bg-zinc-900/50 backdrop-blur-md border-zinc-800 hover:border-cyan-500/20 transition-colors">
+          <Card className="bg-white/90 dark:bg-zinc-900/50 backdrop-blur-md border-gray-200 dark:border-gray-200 dark:border-zinc-800 shadow-sm dark:shadow-none hover:border-cyan-500/20 transition-colors">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm flex items-center gap-2 text-cyan-400" style={{ fontFamily: 'Space Grotesk' }}>
                 <Target className="w-4 h-4" /> Objectifs du cours
@@ -141,7 +141,7 @@ export default function CoursePage() {
             <CardContent>
               <ul className="space-y-2">
                 {course.objectives.map((obj, i) => (
-                  <li key={i} className="flex items-start gap-2.5 text-sm text-zinc-300">
+                  <li key={i} className="flex items-start gap-2.5 text-sm text-gray-700 dark:text-zinc-300">
                     <CheckCircle2 className="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0" />
                     <span>{obj}</span>
                   </li>
@@ -152,7 +152,7 @@ export default function CoursePage() {
         )}
 
         {course.prerequisites && course.prerequisites.length > 0 && (
-          <Card className="bg-zinc-900/50 backdrop-blur-md border-zinc-800 hover:border-violet-500/20 transition-colors">
+          <Card className="bg-white/90 dark:bg-zinc-900/50 backdrop-blur-md border-gray-200 dark:border-gray-200 dark:border-zinc-800 shadow-sm dark:shadow-none hover:border-violet-500/20 transition-colors">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm flex items-center gap-2 text-violet-400" style={{ fontFamily: 'Space Grotesk' }}>
                 <ListChecks className="w-4 h-4" /> Prerequis
@@ -161,7 +161,7 @@ export default function CoursePage() {
             <CardContent>
               <ul className="space-y-2">
                 {course.prerequisites.map((pre, i) => (
-                  <li key={i} className="flex items-start gap-2.5 text-sm text-zinc-300">
+                  <li key={i} className="flex items-start gap-2.5 text-sm text-gray-700 dark:text-zinc-300">
                     <Lightbulb className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
                     <span>{pre}</span>
                   </li>
@@ -174,7 +174,7 @@ export default function CoursePage() {
 
       {/* Video Player */}
       {videoUrl && (
-        <Card className="bg-zinc-900/50 backdrop-blur-md border-zinc-800 overflow-hidden">
+        <Card className="bg-white/90 dark:bg-zinc-900/50 backdrop-blur-md border-gray-200 dark:border-gray-200 dark:border-zinc-800 shadow-sm dark:shadow-none overflow-hidden">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm flex items-center gap-2 text-cyan-400" style={{ fontFamily: 'Space Grotesk' }}>
               <Video className="w-4 h-4" /> Video du cours
@@ -213,15 +213,15 @@ export default function CoursePage() {
 
       {/* Course Content */}
       {course.content && (
-        <Card className="bg-zinc-900/50 backdrop-blur-md border-zinc-800">
+        <Card className="bg-white/90 dark:bg-zinc-900/50 backdrop-blur-md border-gray-200 dark:border-gray-200 dark:border-zinc-800 shadow-sm dark:shadow-none">
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm flex items-center gap-2 text-zinc-300" style={{ fontFamily: 'Space Grotesk' }}>
+            <CardTitle className="text-sm flex items-center gap-2 text-gray-700 dark:text-zinc-300" style={{ fontFamily: 'Space Grotesk' }}>
               <BookOpen className="w-4 h-4 text-cyan-400" /> Contenu du cours
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div 
-              className="prose prose-invert prose-sm max-w-none text-zinc-300 leading-relaxed course-content"
+              className="prose prose-invert prose-sm max-w-none text-gray-700 dark:text-zinc-300 leading-relaxed course-content"
               style={{ whiteSpace: 'pre-wrap', lineHeight: '1.8' }}
               data-testid="course-content"
             >
@@ -238,7 +238,7 @@ export default function CoursePage() {
                 }
                 if (paragraph.startsWith('## ')) {
                   return (
-                    <h2 key={i} className="text-lg font-bold text-zinc-200 mt-8 mb-3" style={{ fontFamily: 'Space Grotesk' }}>
+                    <h2 key={i} className="text-lg font-bold text-gray-800 dark:text-zinc-200 mt-8 mb-3" style={{ fontFamily: 'Space Grotesk' }}>
                       {paragraph.replace('## ', '')}
                     </h2>
                   );
@@ -290,7 +290,7 @@ export default function CoursePage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-sm text-zinc-300 leading-relaxed whitespace-pre-wrap">
+            <div className="text-sm text-gray-700 dark:text-zinc-300 leading-relaxed whitespace-pre-wrap">
               {exercise.lab_instructions}
             </div>
           </CardContent>
@@ -299,14 +299,14 @@ export default function CoursePage() {
 
       {/* CTA - Start Lab */}
       <div className="sticky bottom-6 z-10">
-        <Card className="bg-zinc-950/95 backdrop-blur-xl border-cyan-500/20 shadow-[0_0_30px_rgba(6,182,212,0.1)]">
+        <Card className="bg-white dark:bg-zinc-950/95 backdrop-blur-xl border-cyan-500/20 shadow-[0_0_30px_rgba(6,182,212,0.1)]">
           <CardContent className="p-6">
             <div className="flex flex-col sm:flex-row items-center gap-4">
               <div className="flex-1 text-center sm:text-left">
-                <h3 className="text-lg font-semibold text-zinc-200" style={{ fontFamily: 'Space Grotesk' }}>
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-zinc-200" style={{ fontFamily: 'Space Grotesk' }}>
                   Pret a passer a la pratique ?
                 </h3>
-                <p className="text-sm text-zinc-500 mt-1">
+                <p className="text-sm text-gray-500 dark:text-zinc-500 mt-1">
                   Lancez votre machine virtuelle et mettez en pratique ce que vous avez appris.
                 </p>
               </div>

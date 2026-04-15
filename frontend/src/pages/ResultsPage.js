@@ -124,21 +124,21 @@ export default function ResultsPage() {
     doc.save(`resultat-${sub.exercise_title?.replace(/[^a-zA-Z0-9]/g, '-') || 'exercice'}.pdf`);
   };
 
-  if (loading) return <div className="text-zinc-500 text-center py-20">Chargement...</div>;
+  if (loading) return <div className="text-gray-500 dark:text-zinc-500 text-center py-20">Chargement...</div>;
 
   // Detail view
   if (detail) {
     return (
       <div className="space-y-6 max-w-3xl" data-testid="result-detail">
         <div className="flex items-center justify-between">
-          <Button variant="ghost" className="text-zinc-400 hover:text-cyan-400 -ml-3" onClick={() => navigate('/results')}>
+          <Button variant="ghost" className="text-gray-500 dark:text-zinc-400 hover:text-cyan-400 -ml-3" onClick={() => navigate('/results')}>
             <ArrowLeft className="w-4 h-4 mr-2" /> Retour
           </Button>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" className="bg-zinc-900 border-zinc-700 text-zinc-300 hover:bg-zinc-800 hover:text-cyan-400" onClick={() => handleExportCSV(detail.id)} data-testid="export-result-csv">
+            <Button variant="outline" size="sm" className="bg-gray-50 dark:bg-zinc-900 border-gray-300 dark:border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-zinc-300 hover:bg-zinc-800 hover:text-cyan-400" onClick={() => handleExportCSV(detail.id)} data-testid="export-result-csv">
               <Download className="w-4 h-4 mr-1" /> CSV
             </Button>
-            <Button variant="outline" size="sm" className="bg-zinc-900 border-zinc-700 text-zinc-300 hover:bg-zinc-800 hover:text-violet-400" onClick={() => handleExportPDF(detail)} data-testid="export-result-pdf">
+            <Button variant="outline" size="sm" className="bg-gray-50 dark:bg-zinc-900 border-gray-300 dark:border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-zinc-300 hover:bg-zinc-800 hover:text-violet-400" onClick={() => handleExportPDF(detail)} data-testid="export-result-pdf">
               <FileText className="w-4 h-4 mr-1" /> PDF
             </Button>
           </div>
@@ -146,17 +146,17 @@ export default function ResultsPage() {
 
         <div>
           <h1 className="text-2xl font-bold tracking-tight" style={{ fontFamily: 'Space Grotesk' }}>{detail.exercise_title}</h1>
-          <p className="text-zinc-500 text-sm mt-1">
+          <p className="text-gray-500 dark:text-zinc-500 text-sm mt-1">
             Soumis le {new Date(detail.submitted_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
           </p>
         </div>
 
         {/* Score card */}
-        <Card className="bg-zinc-900/50 backdrop-blur-md border-zinc-800">
+        <Card className="bg-white/90 dark:bg-zinc-900/50 backdrop-blur-md border-gray-200 dark:border-gray-200 dark:border-zinc-800 shadow-sm dark:shadow-none">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-mono text-zinc-500 uppercase mb-1">Score total</p>
+                <p className="text-xs font-mono text-gray-500 dark:text-zinc-500 uppercase mb-1">Score total</p>
                 <div className="flex items-end gap-4">
                   <p className="text-4xl font-bold" style={{
                     fontFamily: 'Space Grotesk',
@@ -189,7 +189,7 @@ export default function ResultsPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-zinc-300 leading-relaxed ai-typing">{detail.ai_feedback}</p>
+              <p className="text-sm text-gray-700 dark:text-zinc-300 leading-relaxed ai-typing">{detail.ai_feedback}</p>
             </CardContent>
           </Card>
         )}
@@ -201,11 +201,11 @@ export default function ResultsPage() {
             const isOpen = !isQcm;
             const pts = answer.points_earned || 0;
             return (
-              <Card key={i} className="bg-zinc-900/50 backdrop-blur-md border-zinc-800">
+              <Card key={i} className="bg-white/90 dark:bg-zinc-900/50 backdrop-blur-md border-gray-200 dark:border-gray-200 dark:border-zinc-800 shadow-sm dark:shadow-none">
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-mono text-zinc-500">Question {i + 1}</span>
+                      <span className="text-xs font-mono text-gray-500 dark:text-zinc-500">Question {i + 1}</span>
                       <Badge className={isQcm ? 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30 text-[10px]' : 'bg-amber-500/15 text-amber-400 border-amber-500/30 text-[10px]'}>
                         {isQcm ? 'QCM' : 'Ouverte'}
                       </Badge>
@@ -215,14 +215,14 @@ export default function ResultsPage() {
                       {answer.correct === false && <XCircle className="w-4 h-4 text-red-400" />}
                       {isOpen && pts > 0 && <CheckCircle2 className="w-4 h-4 text-emerald-400" />}
                       {isOpen && pts === 0 && detail.graded && <XCircle className="w-4 h-4 text-red-400" />}
-                      <span className={`text-sm font-bold ${pts > 0 ? 'text-emerald-400' : 'text-zinc-500'}`} style={{ fontFamily: 'Space Grotesk' }}>
+                      <span className={`text-sm font-bold ${pts > 0 ? 'text-emerald-400' : 'text-gray-500 dark:text-zinc-500'}`} style={{ fontFamily: 'Space Grotesk' }}>
                         {pts} pts
                       </span>
                     </div>
                   </div>
-                  <p className="text-sm text-zinc-300 mb-2">{answer.answer}</p>
+                  <p className="text-sm text-gray-700 dark:text-zinc-300 mb-2">{answer.answer}</p>
                   {answer.ai_feedback && (
-                    <div className="mt-2 border-t border-zinc-800 pt-2 flex gap-2">
+                    <div className="mt-2 border-t border-gray-200 dark:border-zinc-800 pt-2 flex gap-2">
                       <Cpu className="w-3 h-3 text-cyan-400 mt-0.5 flex-shrink-0" />
                       <p className="text-xs text-cyan-400/80">{answer.ai_feedback}</p>
                     </div>
@@ -243,31 +243,31 @@ export default function ResultsPage() {
         <h1 className="text-3xl md:text-4xl font-bold tracking-tight" style={{ fontFamily: 'Space Grotesk' }}>
           Mes <span className="text-gradient">resultats</span>
         </h1>
-        <p className="text-zinc-500 mt-1">{submissions.length} soumission{submissions.length !== 1 ? 's' : ''}</p>
+        <p className="text-gray-500 dark:text-zinc-500 mt-1">{submissions.length} soumission{submissions.length !== 1 ? 's' : ''}</p>
       </div>
 
       <div className="space-y-3">
         {submissions.map((sub, i) => (
           <Card
             key={sub.id}
-            className="bg-zinc-900/50 backdrop-blur-md border-zinc-800 hover:border-zinc-700 transition-all cursor-pointer animate-fade-in-up"
+            className="bg-white/90 dark:bg-zinc-900/50 backdrop-blur-md border-gray-200 dark:border-gray-200 dark:border-zinc-800 shadow-sm dark:shadow-none hover:border-gray-300 dark:border-zinc-700 transition-all cursor-pointer animate-fade-in-up"
             style={{ animationDelay: `${i * 0.03}s` }}
             onClick={() => navigate(`/results/${sub.id}`)}
             data-testid={`submission-row-${sub.id}`}
           >
             <CardContent className="p-4 flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-lg bg-zinc-800 border border-zinc-700 flex items-center justify-center">
-                  <BarChart3 className="w-5 h-5 text-zinc-400" />
+                <div className="w-10 h-10 rounded-lg bg-gray-200 dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 flex items-center justify-center">
+                  <BarChart3 className="w-5 h-5 text-gray-500 dark:text-zinc-400" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-zinc-200">{sub.exercise_title}</p>
+                  <p className="text-sm font-medium text-gray-800 dark:text-zinc-200">{sub.exercise_title}</p>
                   <div className="flex items-center gap-2 mt-1">
-                    <span className="text-xs text-zinc-500">
+                    <span className="text-xs text-gray-500 dark:text-zinc-500">
                       {new Date(sub.submitted_at).toLocaleDateString('fr-FR')}
                     </span>
                     {user?.role !== 'etudiant' && (
-                      <span className="text-xs text-zinc-500">par {sub.student_name}</span>
+                      <span className="text-xs text-gray-500 dark:text-zinc-500">par {sub.student_name}</span>
                     )}
                   </div>
                 </div>
@@ -281,7 +281,7 @@ export default function ResultsPage() {
                     }}>
                       {sub.score_20 != null ? sub.score_20 : Math.round((sub.score / Math.max(sub.max_score, 1)) * 200) / 10}/20
                     </p>
-                    <p className="text-xs text-zinc-500">{sub.score}/{sub.max_score} pts</p>
+                    <p className="text-xs text-gray-500 dark:text-zinc-500">{sub.score}/{sub.max_score} pts</p>
                   </div>
                 ) : (
                   <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">
@@ -296,8 +296,8 @@ export default function ResultsPage() {
 
       {submissions.length === 0 && (
         <div className="text-center py-16">
-          <BarChart3 className="w-12 h-12 text-zinc-700 mx-auto mb-3" />
-          <p className="text-zinc-500">Aucun resultat pour le moment</p>
+          <BarChart3 className="w-12 h-12 text-gray-300 dark:text-zinc-700 mx-auto mb-3" />
+          <p className="text-gray-500 dark:text-zinc-500">Aucun resultat pour le moment</p>
           <Button className="mt-4 bg-cyan-600 hover:bg-cyan-500 text-white" onClick={() => navigate('/exercises')}>
             Commencer un exercice
           </Button>
