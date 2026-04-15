@@ -186,6 +186,9 @@ frontend:
         - working: true
           agent: "main"
           comment: "New page listing all courses for the active formation. Shows badges for video, duration, objectives. Admin/formateur can create/edit/delete."
+        - working: true
+          agent: "testing"
+          comment: "✅ VERIFIED: Courses list page working perfectly. Page loads with 'Cours pedagogiques' title. Empty state displays correctly with 'Aucun cours disponible' message and 'Creer un cours' button for admin/formateur. After creating a course, it appears in the list with proper badges. Course cards show 'Cours independant (pas de lab associe)' for standalone courses. Edit and delete buttons visible for admin/formateur. Students can view courses but cannot edit/delete."
 
   - task: "CourseCreatePage - create/edit courses"
     implemented: true
@@ -197,58 +200,40 @@ frontend:
     status_history:
         - working: true
           agent: "main"
-          comment: "Form with exercise lab selection, title, MP4 video upload, objectives, prerequisites, duration estimate, content with markdown formatting. Supports edit mode when course exists."
+          comment: "UPDATED: Exercise lab is now OPTIONAL. Course can be created independently. Formation/category selectors added. Exercise can be linked or unlinked later."
+        - working: true
+          agent: "testing"
+          comment: "✅ VERIFIED: Course create page fully functional. All form elements present and working: Title input (required, marked with *), Formation selector (BTS SIO SISR, Bachelor AIS), Category selector (optional), Exercise Lab selector with 'Optionnel' badge and 'Aucun exercice (cours independant)' option, Video upload area with 'Optionnel' badge, Objectives section with add/remove, Prerequisites section with add/remove, Duration estimate field, Content textarea with markdown support, Save button. Successfully created standalone course with only title filled. Redirects to /courses after save. Admin and formateur can access this page."
 
-  - task: "CoursePage - course view before lab"
+  - task: "CourseViewPage - standalone course viewer"
     implemented: true
     working: true
-    file: "frontend/src/pages/CoursePage.js"
+    file: "frontend/src/pages/CourseViewPage.js"
     stuck_count: 0
     priority: "high"
     needs_retesting: false
     status_history:
         - working: true
           agent: "main"
-          comment: "Beautiful dark mode page with hero header, objectives, prerequisites, MP4 video player, markdown course content, lab instructions, and sticky CTA 'Demarrer le Lab' button."
-
-  - task: "LabsListPage - course redirect"
-    implemented: true
-    working: true
-    file: "frontend/src/pages/LabsListPage.js"
-    stuck_count: 0
-    priority: "high"
-    needs_retesting: false
-    status_history:
+          comment: "New page for viewing courses by course_id (not exercise_id). Shows lab CTA only when exercise is linked."
         - working: true
-          agent: "main"
-          comment: "When a lab has an associated course, clicking the card redirects to the course page first. Badge 'Cours disponible' shown."
-
-  - task: "Sidebar updated with Cours"
-    implemented: true
-    working: true
-    file: "frontend/src/components/Sidebar.js"
-    stuck_count: 0
-    priority: "high"
-    needs_retesting: false
-    status_history:
-        - working: true
-          agent: "main"
-          comment: "Added 'Cours' navigation item in sidebar for all roles (admin, formateur, etudiant)."
+          agent: "testing"
+          comment: "✅ VERIFIED: Course view page working correctly. Page loads at /courses/view/{courseId} for standalone courses. Displays course title, badges (Cours, duration if set), objectives and prerequisites sections (if provided), video player (if video uploaded), course content with markdown rendering. CRITICAL: 'Demarrer le Lab' button is NOT present for standalone courses (correct behavior). Button only appears when course is linked to an exercise. All users (admin, formateur, student) can view courses."
 
 metadata:
   created_by: "main_agent"
-  version: "2.1"
-  test_sequence: 4
-  run_ui: false
+  version: "2.3"
+  test_sequence: 6
+  run_ui: true
 
 test_plan:
   current_focus: []
   stuck_tasks: []
   test_all: false
-  test_priority: "high_first"
+  test_priority: "sequential"
 
 agent_communication:
     - agent: "main"
-      message: "Implemented course pages feature: Backend CRUD for courses + video upload/serve. Frontend CoursePage, CourseCreatePage, CoursesListPage. Updated LabsListPage to redirect to course before lab. Updated Sidebar. Need testing of new backend endpoints."
+      message: "UPDATED: Exercise lab is now optional when creating a course. Added CourseViewPage for standalone courses. Updated CourseCreatePage, CoursesListPage, backend endpoints. Please test ALL frontend pages: login, dashboard, courses list, course create (with and without lab), course view, labs list, exercises, etc. Test credentials: admin/admin123, formateur/formateur123, etudiant1/etudiant123."
     - agent: "testing"
-      message: "✅ BACKEND TESTING COMPLETE: Successfully tested all new course CRUD and video upload endpoints. 28/29 tests passed (96.6% success rate). All core functionality working: course creation/read/update/delete, video upload/serve/list, proper authentication and authorization. Minor note: duplicate course prevention working correctly (one test failed as expected when trying to create duplicate course). Both admin and formateur can manage courses/videos, students can only read courses. Ready for frontend integration testing or deployment."
+      message: "✅ COMPREHENSIVE TESTING COMPLETED - ALL TESTS PASSED. Tested all critical flows: (1) Login flow for admin, student, formateur - all working. (2) Admin dashboard - all elements present, sidebar navigation complete. (3) Courses list page - working with empty state and course display. (4) Course create page - all form elements present (title required, formation/category selectors, optional exercise lab with 'Optionnel' badge, video upload, objectives, prerequisites, duration, content). (5) Successfully created standalone course without lab. (6) Course appears in list with 'Cours independant (pas de lab associe)' badge. (7) Course view page - loads correctly, NO 'Demarrer le Lab' button for standalone courses (correct behavior). (8) Labs and exercises pages working. (9) Student can access all pages and see courses. (10) Formateur can access course create page and has 'Cours' in sidebar. NO CRITICAL ISSUES FOUND. All features working as expected."

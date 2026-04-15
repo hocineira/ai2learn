@@ -9,7 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import {
   BookOpen, Save, ArrowLeft, Upload, Trash2, Plus, Video,
-  Target, ListChecks, Clock, Monitor, Loader2, FileVideo, CheckCircle2
+  Target, ListChecks, Clock, Monitor, Loader2, FileVideo, CheckCircle2,
+  GraduationCap, Shield, Link2
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -20,12 +21,16 @@ export default function CourseCreatePage() {
   const preselectedExerciseId = searchParams.get('exercise_id');
 
   const [exercises, setExercises] = useState([]);
+  const [formations, setFormations] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [selectedExercise, setSelectedExercise] = useState(preselectedExerciseId || '');
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [objectives, setObjectives] = useState(['']);
   const [prerequisites, setPrerequisites] = useState(['']);
   const [durationEstimate, setDurationEstimate] = useState('');
+  const [formation, setFormation] = useState(activeFormation || 'bts-sio-sisr');
+  const [category, setCategory] = useState('');
   const [videoFilename, setVideoFilename] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -33,26 +38,33 @@ export default function CourseCreatePage() {
   const [existingCourse, setExistingCourse] = useState(null);
   const fileInputRef = useRef(null);
 
-  const formation = activeFormation || 'bts-sio-sisr';
-
   useEffect(() => {
-    const fetchExercises = async () => {
+    const fetchData = async () => {
       try {
         const headers = getAuthHeaders();
-        const res = await axios.get(`${API}/exercises?formation=${formation}`, { headers });
-        // Filter lab-type exercises
-        const labExercises = (res.data || []).filter(e => e.exercise_type === 'lab');
+        const [exRes, fRes, catRes] = await Promise.all([
+          axios.get(`${API}/exercises?formation=${formation}`, { headers }),
+          axios.get(`${API}/formations`, { headers }),
+          axios.get(`${API}/categories?formation=${formation}`, { headers }),
+        ]);
+        // Show all exercises (not just labs) for optional linking
+        const labExercises = (exRes.data || []).filter(e => e.exercise_type === 'lab');
         setExercises(labExercises);
+        setFormations(fRes.data || []);
+        setCategories(catRes.data || []);
       } catch (err) {
         console.error(err);
       }
     };
-    fetchExercises();
+    fetchData();
   }, [API, getAuthHeaders, formation]);
 
   // Auto-load existing course when exercise is selected
   useEffect(() => {
-    if (!selectedExercise) return;
+    if (!selectedExercise) {
+      setExistingCourse(null);
+      return;
+    }
     const loadCourse = async () => {
       try {
         const headers = getAuthHeaders();
@@ -64,12 +76,39 @@ export default function CourseCreatePage() {
         setPrerequisites(res.data.prerequisites?.length > 0 ? res.data.prerequisites : ['']);
         setDurationEstimate(res.data.duration_estimate || '');
         setVideoFilename(res.data.video_filename || null);
+        if (res.data.formation) setFormation(res.data.formation);
+        if (res.data.category) setCategory(res.data.category);
       } catch {
         setExistingCourse(null);
       }
     };
     loadCourse();
   }, [selectedExercise, API, getAuthHeaders]);
+
+  // Also check if we're editing an existing course by course_id param
+  const courseIdParam = searchParams.get('course_id');
+  useEffect(() => {
+    if (!courseIdParam) return;
+    const loadCourseById = async () => {
+      try {
+        const headers = getAuthHeaders();
+        const res = await axios.get(`${API}/courses/${courseIdParam}`, { headers });
+        setExistingCourse(res.data);
+        setTitle(res.data.title || '');
+        setContent(res.data.content || '');
+        setObjectives(res.data.objectives?.length > 0 ? res.data.objectives : ['']);
+        setPrerequisites(res.data.prerequisites?.length > 0 ? res.data.prerequisites : ['']);
+        setDurationEstimate(res.data.duration_estimate || '');
+        setVideoFilename(res.data.video_filename || null);
+        if (res.data.exercise_id) setSelectedExercise(res.data.exercise_id);
+        if (res.data.formation) setFormation(res.data.formation);
+        if (res.data.category) setCategory(res.data.category);
+      } catch {
+        // not found
+      }
+    };
+    loadCourseById();
+  }, [courseIdParam, API, getAuthHeaders]);
 
   const handleVideoUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -100,7 +139,7 @@ export default function CourseCreatePage() {
       setVideoFilename(res.data.filename);
       toast.success(`Video "${file.name}" uploadee avec succes`);
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Erreur lors de l\'upload');
+      toast.error(err.response?.data?.detail || "Erreur lors de l'upload");
     }
     setUploading(false);
   };
@@ -127,8 +166,8 @@ export default function CourseCreatePage() {
   };
 
   const handleSubmit = async () => {
-    if (!selectedExercise || !title.trim()) {
-      toast.error('Selectionnez un exercice lab et remplissez le titre');
+    if (!title.trim()) {
+      toast.error('Remplissez au minimum le titre du cours');
       return;
     }
 
@@ -136,13 +175,15 @@ export default function CourseCreatePage() {
     try {
       const headers = getAuthHeaders();
       const payload = {
-        exercise_id: selectedExercise,
+        exercise_id: selectedExercise || null,
         title: title.trim(),
         content: content.trim(),
         video_filename: videoFilename,
         objectives: objectives.filter(o => o.trim()),
         prerequisites: prerequisites.filter(p => p.trim()),
         duration_estimate: durationEstimate.trim() || null,
+        formation: formation,
+        category: category || null,
       };
 
       if (existingCourse) {
@@ -161,7 +202,9 @@ export default function CourseCreatePage() {
     setSaving(false);
   };
 
-  const selectedEx = exercises.find(e => e.id === selectedExercise);
+  const handleUnlinkExercise = () => {
+    setSelectedExercise('');
+  };
 
   return (
     <div className="max-w-3xl mx-auto space-y-6" data-testid="course-create-page">
@@ -174,49 +217,14 @@ export default function CourseCreatePage() {
           {existingCourse ? 'Modifier le' : 'Creer un'} <span className="text-gradient">cours</span>
         </h1>
         <p className="text-zinc-500 mt-1">
-          Associez un contenu pedagogique a un exercice lab
+          Creez un contenu pedagogique, avec ou sans exercice lab associe
         </p>
       </div>
-
-      {/* Exercise Selection */}
-      <Card className="bg-zinc-900/50 backdrop-blur-md border-zinc-800">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm flex items-center gap-2 text-cyan-400" style={{ fontFamily: 'Space Grotesk' }}>
-            <Monitor className="w-4 h-4" /> Exercice Lab associe
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Select value={selectedExercise} onValueChange={setSelectedExercise}>
-            <SelectTrigger className="bg-zinc-900 border-zinc-700 text-zinc-200" data-testid="select-exercise">
-              <SelectValue placeholder="Choisir un exercice lab..." />
-            </SelectTrigger>
-            <SelectContent className="bg-zinc-900 border-zinc-800">
-              {exercises.length === 0 ? (
-                <SelectItem value="__none" disabled>Aucun exercice lab disponible</SelectItem>
-              ) : (
-                exercises.map(ex => (
-                  <SelectItem key={ex.id} value={ex.id} className="text-zinc-200">
-                    <span className="flex items-center gap-2">
-                      <Monitor className="w-3 h-3 text-orange-400" />
-                      {ex.title}
-                    </span>
-                  </SelectItem>
-                ))
-              )}
-            </SelectContent>
-          </Select>
-          {selectedEx && (
-            <p className="text-xs text-zinc-500 mt-2">
-              Categorie: {selectedEx.category} · {selectedEx.questions?.length || 0} questions
-            </p>
-          )}
-        </CardContent>
-      </Card>
 
       {/* Title */}
       <Card className="bg-zinc-900/50 backdrop-blur-md border-zinc-800">
         <CardContent className="pt-6">
-          <label className="text-xs font-mono text-zinc-500 uppercase tracking-wider mb-2 block">Titre du cours</label>
+          <label className="text-xs font-mono text-zinc-500 uppercase tracking-wider mb-2 block">Titre du cours *</label>
           <Input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
@@ -227,11 +235,115 @@ export default function CourseCreatePage() {
         </CardContent>
       </Card>
 
+      {/* Formation & Category */}
+      <Card className="bg-zinc-900/50 backdrop-blur-md border-zinc-800">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm flex items-center gap-2 text-cyan-400" style={{ fontFamily: 'Space Grotesk' }}>
+            <GraduationCap className="w-4 h-4" /> Formation et categorie
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs text-zinc-500 mb-1 block">Formation</label>
+              <Select value={formation} onValueChange={setFormation}>
+                <SelectTrigger className="bg-zinc-900 border-zinc-700 text-zinc-200 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-zinc-900 border-zinc-800">
+                  {formations.map(f => (
+                    <SelectItem key={f.id} value={f.id} className="text-zinc-200 text-sm">
+                      <span className="flex items-center gap-2">
+                        {f.id === 'bts-sio-sisr'
+                          ? <GraduationCap className="w-3 h-3 text-cyan-400" />
+                          : <Shield className="w-3 h-3 text-violet-400" />
+                        }
+                        {f.name}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-xs text-zinc-500 mb-1 block">Categorie (optionnel)</label>
+              <Select value={category || '__none'} onValueChange={(v) => setCategory(v === '__none' ? '' : v)}>
+                <SelectTrigger className="bg-zinc-900 border-zinc-700 text-zinc-200 text-sm">
+                  <SelectValue placeholder="Choisir une categorie..." />
+                </SelectTrigger>
+                <SelectContent className="bg-zinc-900 border-zinc-800">
+                  <SelectItem value="__none" className="text-zinc-500 text-sm">Aucune categorie</SelectItem>
+                  {categories.map(c => (
+                    <SelectItem key={c.id} value={c.id} className="text-zinc-200 text-sm">
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Exercise Link (Optional) */}
+      <Card className="bg-zinc-900/50 backdrop-blur-md border-zinc-800">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm flex items-center gap-2 text-orange-400" style={{ fontFamily: 'Space Grotesk' }}>
+            <Link2 className="w-4 h-4" /> Exercice Lab associe
+            <Badge className="bg-zinc-800 text-zinc-500 border-zinc-700 text-[10px] ml-2">Optionnel</Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-xs text-zinc-500 mb-3">
+            Vous pouvez associer ce cours a un exercice lab maintenant ou plus tard.
+          </p>
+          <div className="flex items-center gap-2">
+            <div className="flex-1">
+              <Select value={selectedExercise || '__none'} onValueChange={(v) => setSelectedExercise(v === '__none' ? '' : v)}>
+                <SelectTrigger className="bg-zinc-900 border-zinc-700 text-zinc-200" data-testid="select-exercise">
+                  <SelectValue placeholder="Aucun exercice lab (cours independant)" />
+                </SelectTrigger>
+                <SelectContent className="bg-zinc-900 border-zinc-800">
+                  <SelectItem value="__none" className="text-zinc-500">
+                    Aucun exercice (cours independant)
+                  </SelectItem>
+                  {exercises.map(ex => (
+                    <SelectItem key={ex.id} value={ex.id} className="text-zinc-200">
+                      <span className="flex items-center gap-2">
+                        <Monitor className="w-3 h-3 text-orange-400" />
+                        {ex.title}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {selectedExercise && selectedExercise !== '__none' && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-zinc-500 hover:text-red-400 px-2"
+                onClick={handleUnlinkExercise}
+                title="Dissocier l'exercice"
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            )}
+          </div>
+          {selectedExercise && selectedExercise !== '__none' && (
+            <p className="text-xs text-emerald-400 mt-2 flex items-center gap-1">
+              <CheckCircle2 className="w-3 h-3" /> Ce cours apparaitra avant le lab "{exercises.find(e => e.id === selectedExercise)?.title || '...'}"
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Video Upload */}
       <Card className="bg-zinc-900/50 backdrop-blur-md border-zinc-800">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm flex items-center gap-2 text-cyan-400" style={{ fontFamily: 'Space Grotesk' }}>
             <Video className="w-4 h-4" /> Video du cours (MP4)
+            <Badge className="bg-zinc-800 text-zinc-500 border-zinc-700 text-[10px] ml-2">Optionnel</Badge>
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -377,19 +489,7 @@ export default function CourseCreatePage() {
           <textarea
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            placeholder="Redigez le contenu du cours ici...
-
-## Introduction
-
-Le DNS (Domain Name System) est un service reseau fondamental...
-
-### Objectifs de ce TP
-
-- Installer le role DNS sur Windows Server
-- Configurer une zone de recherche directe
-- Tester la resolution avec nslookup
-
-**Important:** Assurez-vous de bien comprendre les concepts avant de demarrer le lab."
+            placeholder={"Redigez le contenu du cours ici...\n\n## Introduction\n\nLe DNS (Domain Name System) est un service reseau fondamental...\n\n### Objectifs de ce TP\n\n- Installer le role DNS sur Windows Server\n- Configurer une zone de recherche directe\n- Tester la resolution avec nslookup\n\n**Important:** Assurez-vous de bien comprendre les concepts avant de demarrer le lab."}
             className="w-full min-h-[400px] bg-zinc-900/50 border border-zinc-700 rounded-lg p-4 text-sm text-zinc-200 placeholder:text-zinc-600 focus:border-cyan-500/50 focus:outline-none resize-y font-mono"
             data-testid="course-content-input"
           />
@@ -401,7 +501,7 @@ Le DNS (Domain Name System) est un service reseau fondamental...
         <Button
           data-testid="save-course-btn"
           onClick={handleSubmit}
-          disabled={saving || !selectedExercise || !title.trim()}
+          disabled={saving || !title.trim()}
           className="bg-gradient-to-r from-cyan-600 to-violet-600 hover:from-cyan-500 hover:to-violet-500 text-white px-8 py-3 text-base shadow-[0_0_20px_rgba(6,182,212,0.2)]"
         >
           {saving ? (

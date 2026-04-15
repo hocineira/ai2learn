@@ -126,21 +126,26 @@ class SubmissionCreate(BaseModel):
 # ─── Course Models ───
 
 class CourseCreate(BaseModel):
-    exercise_id: str
+    exercise_id: Optional[str] = None
     title: str
     content: str = ""
     video_filename: Optional[str] = None
     objectives: List[str] = []
     prerequisites: List[str] = []
     duration_estimate: Optional[str] = None
+    formation: Optional[str] = None
+    category: Optional[str] = None
 
 class CourseUpdate(BaseModel):
+    exercise_id: Optional[str] = None
     title: Optional[str] = None
     content: Optional[str] = None
     video_filename: Optional[str] = None
     objectives: Optional[List[str]] = None
     prerequisites: Optional[List[str]] = None
     duration_estimate: Optional[str] = None
+    formation: Optional[str] = None
+    category: Optional[str] = None
 
 # Upload directory
 UPLOAD_DIR = ROOT_DIR / "uploads" / "videos"
@@ -1100,15 +1105,24 @@ async def create_course(data: CourseCreate, current_user: dict = Depends(auth_de
     if current_user["role"] not in ["admin", "formateur"]:
         raise HTTPException(status_code=403, detail="Formateur ou admin uniquement")
     
-    # Verify exercise exists and is a lab
-    exercise = await db.exercises.find_one({"id": data.exercise_id}, {"_id": 0})
-    if not exercise:
-        raise HTTPException(status_code=404, detail="Exercice non trouve")
+    # If exercise_id provided, verify it exists
+    exercise = None
+    if data.exercise_id:
+        exercise = await db.exercises.find_one({"id": data.exercise_id}, {"_id": 0})
+        if not exercise:
+            raise HTTPException(status_code=404, detail="Exercice non trouve")
+        
+        # Check if course already exists for this exercise
+        existing = await db.courses.find_one({"exercise_id": data.exercise_id}, {"_id": 0})
+        if existing:
+            raise HTTPException(status_code=400, detail="Un cours existe deja pour cet exercice. Utilisez PUT pour le modifier.")
     
-    # Check if course already exists for this exercise
-    existing = await db.courses.find_one({"exercise_id": data.exercise_id}, {"_id": 0})
-    if existing:
-        raise HTTPException(status_code=400, detail="Un cours existe deja pour cet exercice. Utilisez PUT pour le modifier.")
+    # Determine formation and category
+    formation = data.formation
+    category = data.category
+    if exercise:
+        formation = formation or exercise.get("formation", "bts-sio-sisr")
+        category = category or exercise.get("category", "")
     
     course_id = str(uuid.uuid4())
     course_doc = {
@@ -1120,6 +1134,8 @@ async def create_course(data: CourseCreate, current_user: dict = Depends(auth_de
         "objectives": data.objectives,
         "prerequisites": data.prerequisites,
         "duration_estimate": data.duration_estimate,
+        "formation": formation or "bts-sio-sisr",
+        "category": category or "",
         "created_by": current_user["id"],
         "created_by_name": current_user["full_name"],
         "created_at": datetime.now(timezone.utc).isoformat(),
@@ -1131,21 +1147,27 @@ async def create_course(data: CourseCreate, current_user: dict = Depends(auth_de
 @api_router.get("/courses")
 async def get_courses(formation: str = None, current_user: dict = Depends(auth_dependency)):
     if formation:
-        # Get exercise IDs for this formation
+        # Get courses directly tagged with formation OR linked to exercises of this formation
         exercises = await db.exercises.find({"formation": formation}, {"_id": 0, "id": 1}).to_list(1000)
         ex_ids = [e["id"] for e in exercises]
-        courses = await db.courses.find({"exercise_id": {"$in": ex_ids}}, {"_id": 0}).to_list(1000)
+        courses = await db.courses.find({
+            "$or": [
+                {"exercise_id": {"$in": ex_ids}},
+                {"formation": formation},
+            ]
+        }, {"_id": 0}).to_list(1000)
     else:
         courses = await db.courses.find({}, {"_id": 0}).to_list(1000)
     
-    # Enrich with exercise info
+    # Enrich with exercise info when linked
     for course in courses:
-        exercise = await db.exercises.find_one({"id": course["exercise_id"]}, {"_id": 0, "title": 1, "category": 1, "formation": 1, "exercise_type": 1})
-        if exercise:
-            course["exercise_title"] = exercise.get("title", "")
-            course["exercise_category"] = exercise.get("category", "")
-            course["exercise_formation"] = exercise.get("formation", "")
-            course["exercise_type"] = exercise.get("exercise_type", "standard")
+        if course.get("exercise_id"):
+            exercise = await db.exercises.find_one({"id": course["exercise_id"]}, {"_id": 0, "title": 1, "category": 1, "formation": 1, "exercise_type": 1})
+            if exercise:
+                course["exercise_title"] = exercise.get("title", "")
+                course["exercise_category"] = exercise.get("category", "")
+                course["exercise_formation"] = exercise.get("formation", "")
+                course["exercise_type"] = exercise.get("exercise_type", "standard")
     return courses
 
 @api_router.get("/courses/by-exercise/{exercise_id}")
@@ -1168,6 +1190,13 @@ async def update_course(course_id: str, data: CourseUpdate, current_user: dict =
         raise HTTPException(status_code=403, detail="Acces refuse")
     
     update = {"updated_at": datetime.now(timezone.utc).isoformat()}
+    if data.exercise_id is not None:
+        # Validate exercise if provided (empty string = unlink)
+        if data.exercise_id:
+            exercise = await db.exercises.find_one({"id": data.exercise_id}, {"_id": 0})
+            if not exercise:
+                raise HTTPException(status_code=404, detail="Exercice non trouve")
+        update["exercise_id"] = data.exercise_id if data.exercise_id else None
     if data.title is not None:
         update["title"] = data.title
     if data.content is not None:
@@ -1180,6 +1209,10 @@ async def update_course(course_id: str, data: CourseUpdate, current_user: dict =
         update["prerequisites"] = data.prerequisites
     if data.duration_estimate is not None:
         update["duration_estimate"] = data.duration_estimate
+    if data.formation is not None:
+        update["formation"] = data.formation
+    if data.category is not None:
+        update["category"] = data.category
     
     result = await db.courses.update_one({"id": course_id}, {"$set": update})
     if result.matched_count == 0:

@@ -72,12 +72,19 @@ export default function CoursesListPage() {
 
       {courses.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {courses.map((course, i) => (
+          {courses.map((course, i) => {
+            const courseUrl = course.exercise_id ? `/courses/${course.exercise_id}` : `/courses/view/${course.id}`;
+            const editUrl = course.exercise_id
+              ? `/courses/create?exercise_id=${course.exercise_id}`
+              : `/courses/create?course_id=${course.id}`;
+            const categoryLabel = course.exercise_category || course.category || '';
+
+            return (
             <Card
               key={course.id}
               className="bg-zinc-900/50 backdrop-blur-md border-zinc-800 hover:border-cyan-500/30 transition-all cursor-pointer animate-fade-in-up group"
               style={{ animationDelay: `${i * 0.05}s` }}
-              onClick={() => navigate(`/courses/${course.exercise_id}`)}
+              onClick={() => navigate(courseUrl)}
               data-testid={`course-card-${course.id}`}
             >
               <CardContent className="p-5">
@@ -89,12 +96,19 @@ export default function CoursesListPage() {
                     <h3 className="text-base font-semibold text-zinc-200 truncate mb-1" style={{ fontFamily: 'Space Grotesk' }}>
                       {course.title}
                     </h3>
-                    {course.exercise_title && (
+                    {course.exercise_title ? (
                       <p className="text-xs text-zinc-500 mb-2 flex items-center gap-1">
                         <Monitor className="w-3 h-3" /> Lab: {course.exercise_title}
                       </p>
+                    ) : (
+                      <p className="text-xs text-zinc-600 mb-2 italic">Cours independant (pas de lab associe)</p>
                     )}
                     <div className="flex items-center gap-2 flex-wrap">
+                      {course.exercise_id && (
+                        <Badge className="bg-orange-500/15 text-orange-400 border-orange-500/30 text-[10px]">
+                          <Monitor className="w-3 h-3 mr-1" /> Lab lie
+                        </Badge>
+                      )}
                       {course.video_filename && (
                         <Badge className="bg-violet-500/15 text-violet-400 border-violet-500/30 text-[10px]">
                           <Video className="w-3 h-3 mr-1" /> Video
@@ -110,9 +124,9 @@ export default function CoursesListPage() {
                           <Target className="w-3 h-3 mr-1" /> {course.objectives.length} objectif{course.objectives.length > 1 ? 's' : ''}
                         </Badge>
                       )}
-                      {course.exercise_category && (
+                      {categoryLabel && (
                         <Badge className="bg-zinc-800 text-zinc-400 border-zinc-700 text-[10px]">
-                          {course.exercise_category}
+                          {categoryLabel}
                         </Badge>
                       )}
                     </div>
@@ -123,7 +137,7 @@ export default function CoursesListPage() {
                       className="bg-gradient-to-r from-cyan-600 to-violet-600 hover:from-cyan-500 hover:to-violet-500 text-white text-xs"
                       onClick={(e) => {
                         e.stopPropagation();
-                        navigate(`/courses/${course.exercise_id}`);
+                        navigate(courseUrl);
                       }}
                     >
                       <Play className="w-3.5 h-3.5 mr-1" /> Voir
@@ -137,7 +151,7 @@ export default function CoursesListPage() {
                           className="text-zinc-500 hover:text-cyan-400 px-1.5 h-7"
                           onClick={(e) => {
                             e.stopPropagation();
-                            navigate(`/courses/create?exercise_id=${course.exercise_id}`);
+                            navigate(editUrl);
                           }}
                         >
                           <Pencil className="w-3 h-3" />
@@ -159,7 +173,7 @@ export default function CoursesListPage() {
                 </div>
               </CardContent>
             </Card>
-          ))}
+          )})}
         </div>
       ) : (
         <Card className="bg-zinc-900/50 backdrop-blur-md border-zinc-800">
