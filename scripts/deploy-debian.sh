@@ -131,19 +131,46 @@ ask_config() {
 # ─── Installation des dependances systeme ───
 install_system_deps() {
     log_info "Mise a jour du systeme..."
-    apt-get update -qq
-    apt-get upgrade -y -qq
+    apt-get update
+    apt-get upgrade -y
     
     log_info "Installation des paquets de base..."
-    apt-get install -y -qq \
+    apt-get install -y \
         curl wget gnupg2 ca-certificates lsb-release \
         software-properties-common apt-transport-https \
         build-essential git unzip nano htop \
         python3 python3-pip python3-venv python3-dev \
-        nginx certbot python3-certbot-nginx \
         ufw
     
+    # Installer Nginx separement pour mieux detecter les erreurs
+    log_info "Installation de Nginx..."
+    apt-get install -y nginx || {
+        log_error "Echec de l'installation de Nginx. Tentative alternative..."
+        # Sur certains Debian, il faut activer le repo
+        apt-get update
+        apt-get install -y nginx-full 2>/dev/null || apt-get install -y nginx-light 2>/dev/null || {
+            log_error "Impossible d'installer Nginx. Installez-le manuellement: apt-get install nginx"
+            exit 1
+        }
+    }
+    
+    # Verifier que nginx est bien installe
+    if ! command -v nginx &> /dev/null; then
+        log_error "Nginx n'est pas dans le PATH. Verifiez l'installation."
+        exit 1
+    fi
+    
+    # Certbot (optionnel, ne bloque pas si echec)
+    apt-get install -y certbot python3-certbot-nginx 2>/dev/null || {
+        log_warn "Certbot non installe - SSL Let's Encrypt ne sera pas disponible"
+    }
+    
+    # Demarrer et activer nginx
+    systemctl enable nginx 2>/dev/null || true
+    systemctl start nginx 2>/dev/null || true
+    
     log_success "Paquets systeme installes"
+    log_success "Nginx $(nginx -v 2>&1 | cut -d'/' -f2)"
 }
 
 # ─── Installation Node.js 20 LTS ───
@@ -155,7 +182,7 @@ install_nodejs() {
         log_info "Node.js deja installe: $NODE_VER"
     else
         curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-        apt-get install -y -qq nodejs
+        apt-get install -y nodejs
     fi
     
     # Installer Yarn
@@ -175,20 +202,36 @@ install_mongodb() {
     else
         # Import GPG key
         curl -fsSL https://www.mongodb.org/static/pgp/server-7.0.asc | \
-            gpg --dearmor -o /usr/share/keyrings/mongodb-server-7.0.gpg
+            gpg --dearmor -o /usr/share/keyrings/mongodb-server-7.0.gpg 2>/dev/null || true
         
-        # Add repo (compatible Debian 12 bookworm)
-        echo "deb [signed-by=/usr/share/keyrings/mongodb-server-7.0.gpg] http://repo.mongodb.org/apt/debian bookworm/mongodb-org/7.0 main" | \
+        # Detecter la version Debian pour le bon repo
+        DEBIAN_CODENAME=$(lsb_release -cs 2>/dev/null || echo "bookworm")
+        # MongoDB 7.0 supporte bookworm (Debian 12). Pour Debian 13 (trixie), utiliser bookworm
+        if [ "$DEBIAN_CODENAME" != "bookworm" ] && [ "$DEBIAN_CODENAME" != "bullseye" ]; then
+            log_warn "Debian $DEBIAN_CODENAME detecte - utilisation du repo bookworm pour MongoDB"
+            DEBIAN_CODENAME="bookworm"
+        fi
+        
+        echo "deb [signed-by=/usr/share/keyrings/mongodb-server-7.0.gpg] http://repo.mongodb.org/apt/debian ${DEBIAN_CODENAME}/mongodb-org/7.0 main" | \
             tee /etc/apt/sources.list.d/mongodb-org-7.0.list
         
-        apt-get update -qq
-        apt-get install -y -qq mongodb-org
+        apt-get update
+        apt-get install -y mongodb-org || {
+            log_error "Echec installation MongoDB. Verifiez le repo."
+            exit 1
+        }
     fi
     
     systemctl enable mongod
     systemctl start mongod
     
-    log_success "MongoDB installe et demarre"
+    # Verifier que MongoDB tourne
+    sleep 2
+    if systemctl is-active --quiet mongod; then
+        log_success "MongoDB installe et demarre"
+    else
+        log_warn "MongoDB installe mais ne demarre pas. Verifiez: journalctl -u mongod"
+    fi
 }
 
 # ─── Copie des fichiers de l'application ───
@@ -422,8 +465,12 @@ NGXEOF
     rm -f /etc/nginx/sites-enabled/default
     
     # Test et reload
-    nginx -t
-    systemctl reload nginx
+    log_info "Test de la configuration Nginx..."
+    nginx -t 2>&1 || {
+        log_error "Configuration Nginx invalide ! Verifiez /etc/nginx/sites-available/ai2lean"
+        exit 1
+    }
+    systemctl restart nginx
     
     log_success "Nginx configure"
 }
