@@ -221,7 +221,7 @@ export default function CoursePage() {
           </CardHeader>
           <CardContent>
             <div 
-              className="prose prose-invert prose-sm max-w-none text-gray-700 dark:text-zinc-300 leading-relaxed course-content"
+              className="prose prose-sm dark:prose-invert max-w-none text-gray-700 dark:text-zinc-300 leading-relaxed course-content"
               style={{ whiteSpace: 'pre-wrap', lineHeight: '1.8' }}
               data-testid="course-content"
             >

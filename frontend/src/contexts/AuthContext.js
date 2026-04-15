@@ -35,8 +35,8 @@ export const AuthProvider = ({ children }) => {
     checkAuth();
   }, [token]);
 
-  const login = async (username, password) => {
-    const res = await axios.post(`${API}/auth/login`, { username, password });
+  const login = async (email, password) => {
+    const res = await axios.post(`${API}/auth/login`, { email, password });
     localStorage.setItem('token', res.data.token);
     setToken(res.data.token);
     setUser(res.data.user);
@@ -46,8 +46,8 @@ export const AuthProvider = ({ children }) => {
     return res.data.user;
   };
 
-  const register = async (username, password, fullName, role, formation) => {
-    const res = await axios.post(`${API}/auth/register`, { username, password, full_name: fullName, role, formation });
+  const register = async (email, password, fullName, role, formation) => {
+    const res = await axios.post(`${API}/auth/register`, { email, password, full_name: fullName, role, formation });
     localStorage.setItem('token', res.data.token);
     setToken(res.data.token);
     setUser(res.data.user);

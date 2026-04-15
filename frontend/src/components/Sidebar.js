@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
-const LOGO_URL = 'https://customer-assets.emergentagent.com/job_formateur-hub/artifacts/z58spqz8_image.png';
+const LOGO_URL = 'https://customer-assets.emergentagent.com/job_guac-edu-platform/artifacts/i1bnge8a_netbfrs_logo.png';
 
 const roleColors = {
   admin: 'bg-purple-500/20 text-purple-500 dark:text-purple-400 border-purple-500/30',

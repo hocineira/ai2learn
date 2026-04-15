@@ -7,12 +7,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Eye, EyeOff, GraduationCap, Shield } from 'lucide-react';
 import { toast } from 'sonner';
 
-const LOGO_URL = 'https://customer-assets.emergentagent.com/job_formateur-hub/artifacts/z58spqz8_image.png';
+const LOGO_URL = 'https://customer-assets.emergentagent.com/job_guac-edu-platform/artifacts/i1bnge8a_netbfrs_logo.png';
 
 export default function LoginPage() {
   const { login, register } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [role, setRole] = useState('etudiant');
@@ -25,10 +25,10 @@ export default function LoginPage() {
     setLoading(true);
     try {
       if (isLogin) {
-        await login(username, password);
+        await login(email, password);
         toast.success('Connexion reussie');
       } else {
-        await register(username, password, fullName, role, formation);
+        await register(email, password, fullName, role, formation);
         toast.success('Compte cree avec succes');
       }
     } catch (err) {
@@ -91,8 +91,8 @@ export default function LoginPage() {
                 </>
               )}
               <div>
-                <label className="text-xs font-mono text-gray-500 dark:text-zinc-500 uppercase tracking-wider mb-2 block">Nom d'utilisateur</label>
-                <Input data-testid="login-username" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="votre_username" className="bg-white dark:bg-zinc-950 border-gray-200 dark:border-zinc-800 focus:border-cyan-500 focus:ring-cyan-500/20 text-gray-800 dark:text-zinc-100 placeholder:text-gray-400 dark:text-zinc-600" required />
+                <label className="text-xs font-mono text-gray-500 dark:text-zinc-500 uppercase tracking-wider mb-2 block">Email</label>
+                <Input data-testid="login-email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="votre@email.fr" className="bg-white dark:bg-zinc-950 border-gray-200 dark:border-zinc-800 focus:border-cyan-500 focus:ring-cyan-500/20 text-gray-800 dark:text-zinc-100 placeholder:text-gray-400 dark:text-zinc-600" required />
               </div>
               <div>
                 <label className="text-xs font-mono text-gray-500 dark:text-zinc-500 uppercase tracking-wider mb-2 block">Mot de passe</label>
@@ -130,7 +130,7 @@ export default function LoginPage() {
         </Card>
 
         <div className="mt-4 text-center animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
-          <p className="text-xs text-gray-400 dark:text-zinc-600">Demo: admin/admin123 | formateur/formateur123 | etudiant1/etudiant123 | ais_student1/etudiant123</p>
+          <p className="text-xs text-gray-400 dark:text-zinc-600">Demo: admin@netbfrs.fr/admin123 | formateur@netbfrs.fr/formateur123 | alice.martin@netbfrs.fr/etudiant123 | claire.petit@netbfrs.fr/etudiant123</p>
         </div>
       </div>
     </div>

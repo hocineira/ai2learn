@@ -89,14 +89,14 @@ CATEGORIES_BY_FORMATION = {
 # ─── Pydantic Models ───
 
 class UserCreate(BaseModel):
-    username: str
+    email: str
     password: str
     full_name: str
     role: str = "etudiant"
     formation: str = "bts-sio-sisr"
 
 class UserLogin(BaseModel):
-    username: str
+    email: str
     password: str
 
 class UserUpdate(BaseModel):
@@ -187,7 +187,8 @@ async def auth_dependency(authorization: str = Header(None)):
 
 def user_response(user):
     return {
-        "id": user["id"], "username": user["username"],
+        "id": user["id"], "email": user.get("email", user.get("username", "")),
+        "username": user.get("email", user.get("username", "")),
         "full_name": user["full_name"], "role": user["role"],
         "formation": user.get("formation", "bts-sio-sisr")
     }
@@ -196,9 +197,9 @@ def user_response(user):
 
 @api_router.post("/auth/register")
 async def register(data: UserCreate):
-    existing = await db.users.find_one({"username": data.username}, {"_id": 0})
+    existing = await db.users.find_one({"email": data.email}, {"_id": 0})
     if existing:
-        raise HTTPException(status_code=400, detail="Nom d'utilisateur deja pris")
+        raise HTTPException(status_code=400, detail="Cet email est deja utilise")
     
     valid_formations = [f["id"] for f in FORMATIONS]
     formation = data.formation if data.formation in valid_formations else "bts-sio-sisr"
@@ -206,7 +207,8 @@ async def register(data: UserCreate):
     user_id = str(uuid.uuid4())
     user_doc = {
         "id": user_id,
-        "username": data.username,
+        "email": data.email,
+        "username": data.email,
         "password": hash_password(data.password),
         "full_name": data.full_name,
         "role": data.role if data.role in ["admin", "formateur", "etudiant"] else "etudiant",
@@ -219,7 +221,8 @@ async def register(data: UserCreate):
 
 @api_router.post("/auth/login")
 async def login(data: UserLogin):
-    user = await db.users.find_one({"username": data.username}, {"_id": 0})
+    # Search by email or legacy username
+    user = await db.users.find_one({"$or": [{"email": data.email}, {"username": data.email}]}, {"_id": 0})
     if not user or not verify_password(data.password, user["password"]):
         raise HTTPException(status_code=401, detail="Identifiants incorrects")
     token = create_token(user["id"], user["role"])
@@ -1035,23 +1038,23 @@ async def export_single_result_csv(submission_id: str, current_user: dict = Depe
 
 @api_router.post("/seed")
 async def seed_data():
-    admin_exists = await db.users.find_one({"username": "admin"}, {"_id": 0})
+    admin_exists = await db.users.find_one({"$or": [{"email": "admin@netbfrs.fr"}, {"username": "admin"}]}, {"_id": 0})
     if admin_exists:
         return {"message": "Donnees deja initialisees"}
     
     admin_id = str(uuid.uuid4())
-    await db.users.insert_one({"id": admin_id, "username": "admin", "password": hash_password("admin123"), "full_name": "Administrateur NETBFRS", "role": "admin", "formation": "bts-sio-sisr", "created_at": datetime.now(timezone.utc).isoformat()})
+    await db.users.insert_one({"id": admin_id, "email": "admin@netbfrs.fr", "username": "admin@netbfrs.fr", "password": hash_password("admin123"), "full_name": "Administrateur NETBFRS", "role": "admin", "formation": "bts-sio-sisr", "created_at": datetime.now(timezone.utc).isoformat()})
     
     formateur_id = str(uuid.uuid4())
-    await db.users.insert_one({"id": formateur_id, "username": "formateur", "password": hash_password("formateur123"), "full_name": "Jean Dupont", "role": "formateur", "formation": "bts-sio-sisr", "created_at": datetime.now(timezone.utc).isoformat()})
+    await db.users.insert_one({"id": formateur_id, "email": "formateur@netbfrs.fr", "username": "formateur@netbfrs.fr", "password": hash_password("formateur123"), "full_name": "Jean Dupont", "role": "formateur", "formation": "bts-sio-sisr", "created_at": datetime.now(timezone.utc).isoformat()})
     
     # BTS SIO SISR students
-    for uname, fname in [("etudiant1", "Alice Martin"), ("etudiant2", "Bob Durand")]:
-        await db.users.insert_one({"id": str(uuid.uuid4()), "username": uname, "password": hash_password("etudiant123"), "full_name": fname, "role": "etudiant", "formation": "bts-sio-sisr", "created_at": datetime.now(timezone.utc).isoformat()})
+    for email, fname in [("alice.martin@netbfrs.fr", "Alice Martin"), ("bob.durand@netbfrs.fr", "Bob Durand")]:
+        await db.users.insert_one({"id": str(uuid.uuid4()), "email": email, "username": email, "password": hash_password("etudiant123"), "full_name": fname, "role": "etudiant", "formation": "bts-sio-sisr", "created_at": datetime.now(timezone.utc).isoformat()})
     
     # Bachelor AIS students
-    for uname, fname in [("ais_student1", "Claire Petit"), ("ais_student2", "David Moreau")]:
-        await db.users.insert_one({"id": str(uuid.uuid4()), "username": uname, "password": hash_password("etudiant123"), "full_name": fname, "role": "etudiant", "formation": "bachelor-ais", "created_at": datetime.now(timezone.utc).isoformat()})
+    for email, fname in [("claire.petit@netbfrs.fr", "Claire Petit"), ("david.moreau@netbfrs.fr", "David Moreau")]:
+        await db.users.insert_one({"id": str(uuid.uuid4()), "email": email, "username": email, "password": hash_password("etudiant123"), "full_name": fname, "role": "etudiant", "formation": "bachelor-ais", "created_at": datetime.now(timezone.utc).isoformat()})
     
     # BTS SIO SISR exercises
     await db.exercises.insert_one({
@@ -1104,10 +1107,10 @@ async def seed_data():
     })
     
     return {"message": "Donnees AI2Lean initialisees", "credentials": {
-        "admin": {"username": "admin", "password": "admin123"},
-        "formateur": {"username": "formateur", "password": "formateur123"},
-        "bts_sisr": {"username": "etudiant1/etudiant2", "password": "etudiant123"},
-        "bachelor_ais": {"username": "ais_student1/ais_student2", "password": "etudiant123"},
+        "admin": {"email": "admin@netbfrs.fr", "password": "admin123"},
+        "formateur": {"email": "formateur@netbfrs.fr", "password": "formateur123"},
+        "bts_sisr": {"email": "alice.martin@netbfrs.fr / bob.durand@netbfrs.fr", "password": "etudiant123"},
+        "bachelor_ais": {"email": "claire.petit@netbfrs.fr / david.moreau@netbfrs.fr", "password": "etudiant123"},
     }}
 
 
