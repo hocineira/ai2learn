@@ -5,13 +5,14 @@ import axios from 'axios';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Monitor, Play, Clock, CheckCircle2, Server } from 'lucide-react';
+import { Monitor, Play, Clock, CheckCircle2, Server, BookOpen } from 'lucide-react';
 
 export default function LabsListPage() {
   const { getAuthHeaders, API, user } = useAuth();
   const navigate = useNavigate();
   const [labs, setLabs] = useState([]);
   const [exercises, setExercises] = useState([]);
+  const [courses, setCourses] = useState({});
   const [loading, setLoading] = useState(true);
 
   const formation = user?.formation || 'bts-sio-sisr';
@@ -36,6 +37,20 @@ export default function LabsListPage() {
           })
         );
         setLabs(labStatuses);
+
+        // Check which exercises have courses
+        const courseMap = {};
+        await Promise.all(
+          labExercises.map(async (ex) => {
+            try {
+              await axios.get(`${API}/courses/by-exercise/${ex.id}`, { headers });
+              courseMap[ex.id] = true;
+            } catch {
+              courseMap[ex.id] = false;
+            }
+          })
+        );
+        setCourses(courseMap);
       } catch (err) {
         console.error(err);
       }
@@ -66,13 +81,21 @@ export default function LabsListPage() {
           {exercises.map((ex, i) => {
             const labStatus = getLabStatus(ex.id);
             const isRunning = labStatus.status === 'running';
+            const hasCourse = courses[ex.id] === true;
 
             return (
               <Card
                 key={ex.id}
                 className={`bg-zinc-900/50 backdrop-blur-md border-zinc-800 hover:border-orange-500/30 transition-all cursor-pointer animate-fade-in-up ${isRunning ? 'border-emerald-500/30' : ''}`}
                 style={{ animationDelay: `${i * 0.05}s` }}
-                onClick={() => navigate(`/labs/${ex.id}`)}
+                onClick={() => {
+                  // If course exists and lab not yet running, go to course first
+                  if (hasCourse && !isRunning) {
+                    navigate(`/courses/${ex.id}`);
+                  } else {
+                    navigate(`/labs/${ex.id}`);
+                  }
+                }}
                 data-testid={`lab-card-${ex.id}`}
               >
                 <CardContent className="p-5">
@@ -91,6 +114,11 @@ export default function LabsListPage() {
                         <Badge className="bg-orange-500/20 text-orange-400 border-orange-500/30 text-[10px]">
                           <Server className="w-3 h-3 mr-1" /> VM Windows
                         </Badge>
+                        {hasCourse && (
+                          <Badge className="bg-cyan-500/15 text-cyan-400 border-cyan-500/30 text-[10px]">
+                            <BookOpen className="w-3 h-3 mr-1" /> Cours disponible
+                          </Badge>
+                        )}
                         <Badge className="bg-zinc-800 text-zinc-400 border-zinc-700 text-[10px]">
                           {ex.category}
                         </Badge>
@@ -108,10 +136,12 @@ export default function LabsListPage() {
                     </div>
                     <Button
                       size="sm"
-                      className={isRunning ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-gradient-to-r from-cyan-600 to-violet-600 hover:from-cyan-500 hover:to-violet-500 text-white'}
+                      className={isRunning ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : hasCourse ? 'bg-gradient-to-r from-cyan-600 to-violet-600 hover:from-cyan-500 hover:to-violet-500 text-white' : 'bg-gradient-to-r from-cyan-600 to-violet-600 hover:from-cyan-500 hover:to-violet-500 text-white'}
                     >
                       {isRunning ? (
                         <><CheckCircle2 className="w-4 h-4 mr-1" /> Acceder</>
+                      ) : hasCourse ? (
+                        <><BookOpen className="w-4 h-4 mr-1" /> Cours</>
                       ) : (
                         <><Play className="w-4 h-4 mr-1" /> Demarrer</>
                       )}

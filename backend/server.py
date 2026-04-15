@@ -1,4 +1,5 @@
-from fastapi import FastAPI, APIRouter, Depends, HTTPException, status, Header
+from fastapi import FastAPI, APIRouter, Depends, HTTPException, status, Header, UploadFile, File, Form
+from fastapi.responses import FileResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -14,6 +15,7 @@ import jwt
 import json
 import asyncio
 import base64
+import shutil
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -120,6 +122,29 @@ class SubmissionAnswer(BaseModel):
 class SubmissionCreate(BaseModel):
     exercise_id: str
     answers: List[SubmissionAnswer]
+
+# ─── Course Models ───
+
+class CourseCreate(BaseModel):
+    exercise_id: str
+    title: str
+    content: str = ""
+    video_filename: Optional[str] = None
+    objectives: List[str] = []
+    prerequisites: List[str] = []
+    duration_estimate: Optional[str] = None
+
+class CourseUpdate(BaseModel):
+    title: Optional[str] = None
+    content: Optional[str] = None
+    video_filename: Optional[str] = None
+    objectives: Optional[List[str]] = None
+    prerequisites: Optional[List[str]] = None
+    duration_estimate: Optional[str] = None
+
+# Upload directory
+UPLOAD_DIR = ROOT_DIR / "uploads" / "videos"
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 # ─── Auth Helpers ───
 
@@ -1066,6 +1091,186 @@ async def seed_data():
         "bts_sisr": {"username": "etudiant1/etudiant2", "password": "etudiant123"},
         "bachelor_ais": {"username": "ais_student1/ais_student2", "password": "etudiant123"},
     }}
+
+
+# ─── Course Routes ───
+
+@api_router.post("/courses", status_code=201)
+async def create_course(data: CourseCreate, current_user: dict = Depends(auth_dependency)):
+    if current_user["role"] not in ["admin", "formateur"]:
+        raise HTTPException(status_code=403, detail="Formateur ou admin uniquement")
+    
+    # Verify exercise exists and is a lab
+    exercise = await db.exercises.find_one({"id": data.exercise_id}, {"_id": 0})
+    if not exercise:
+        raise HTTPException(status_code=404, detail="Exercice non trouve")
+    
+    # Check if course already exists for this exercise
+    existing = await db.courses.find_one({"exercise_id": data.exercise_id}, {"_id": 0})
+    if existing:
+        raise HTTPException(status_code=400, detail="Un cours existe deja pour cet exercice. Utilisez PUT pour le modifier.")
+    
+    course_id = str(uuid.uuid4())
+    course_doc = {
+        "id": course_id,
+        "exercise_id": data.exercise_id,
+        "title": data.title,
+        "content": data.content,
+        "video_filename": data.video_filename,
+        "objectives": data.objectives,
+        "prerequisites": data.prerequisites,
+        "duration_estimate": data.duration_estimate,
+        "created_by": current_user["id"],
+        "created_by_name": current_user["full_name"],
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.courses.insert_one(course_doc)
+    return {k: v for k, v in course_doc.items() if k != "_id"}
+
+@api_router.get("/courses")
+async def get_courses(formation: str = None, current_user: dict = Depends(auth_dependency)):
+    if formation:
+        # Get exercise IDs for this formation
+        exercises = await db.exercises.find({"formation": formation}, {"_id": 0, "id": 1}).to_list(1000)
+        ex_ids = [e["id"] for e in exercises]
+        courses = await db.courses.find({"exercise_id": {"$in": ex_ids}}, {"_id": 0}).to_list(1000)
+    else:
+        courses = await db.courses.find({}, {"_id": 0}).to_list(1000)
+    
+    # Enrich with exercise info
+    for course in courses:
+        exercise = await db.exercises.find_one({"id": course["exercise_id"]}, {"_id": 0, "title": 1, "category": 1, "formation": 1, "exercise_type": 1})
+        if exercise:
+            course["exercise_title"] = exercise.get("title", "")
+            course["exercise_category"] = exercise.get("category", "")
+            course["exercise_formation"] = exercise.get("formation", "")
+            course["exercise_type"] = exercise.get("exercise_type", "standard")
+    return courses
+
+@api_router.get("/courses/by-exercise/{exercise_id}")
+async def get_course_by_exercise(exercise_id: str, current_user: dict = Depends(auth_dependency)):
+    course = await db.courses.find_one({"exercise_id": exercise_id}, {"_id": 0})
+    if not course:
+        raise HTTPException(status_code=404, detail="Aucun cours pour cet exercice")
+    return course
+
+@api_router.get("/courses/{course_id}")
+async def get_course(course_id: str, current_user: dict = Depends(auth_dependency)):
+    course = await db.courses.find_one({"id": course_id}, {"_id": 0})
+    if not course:
+        raise HTTPException(status_code=404, detail="Cours non trouve")
+    return course
+
+@api_router.put("/courses/{course_id}")
+async def update_course(course_id: str, data: CourseUpdate, current_user: dict = Depends(auth_dependency)):
+    if current_user["role"] not in ["admin", "formateur"]:
+        raise HTTPException(status_code=403, detail="Acces refuse")
+    
+    update = {"updated_at": datetime.now(timezone.utc).isoformat()}
+    if data.title is not None:
+        update["title"] = data.title
+    if data.content is not None:
+        update["content"] = data.content
+    if data.video_filename is not None:
+        update["video_filename"] = data.video_filename
+    if data.objectives is not None:
+        update["objectives"] = data.objectives
+    if data.prerequisites is not None:
+        update["prerequisites"] = data.prerequisites
+    if data.duration_estimate is not None:
+        update["duration_estimate"] = data.duration_estimate
+    
+    result = await db.courses.update_one({"id": course_id}, {"$set": update})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Cours non trouve")
+    return {"message": "Cours mis a jour"}
+
+@api_router.delete("/courses/{course_id}")
+async def delete_course(course_id: str, current_user: dict = Depends(auth_dependency)):
+    if current_user["role"] not in ["admin", "formateur"]:
+        raise HTTPException(status_code=403, detail="Acces refuse")
+    
+    course = await db.courses.find_one({"id": course_id}, {"_id": 0})
+    if not course:
+        raise HTTPException(status_code=404, detail="Cours non trouve")
+    
+    # Delete associated video file
+    if course.get("video_filename"):
+        video_path = UPLOAD_DIR / course["video_filename"]
+        if video_path.exists():
+            video_path.unlink()
+    
+    await db.courses.delete_one({"id": course_id})
+    return {"message": "Cours supprime"}
+
+# ─── Video Upload & Serve ───
+
+@api_router.post("/upload/video")
+async def upload_video(file: UploadFile = File(...), current_user: dict = Depends(auth_dependency)):
+    if current_user["role"] not in ["admin", "formateur"]:
+        raise HTTPException(status_code=403, detail="Acces refuse")
+    
+    # Validate file type
+    if not file.content_type or not file.content_type.startswith("video/"):
+        raise HTTPException(status_code=400, detail="Le fichier doit etre une video (MP4, WebM, etc.)")
+    
+    # Generate unique filename
+    ext = Path(file.filename).suffix if file.filename else ".mp4"
+    filename = f"{uuid.uuid4()}{ext}"
+    filepath = UPLOAD_DIR / filename
+    
+    # Save file in chunks
+    try:
+        with open(filepath, "wb") as buffer:
+            while chunk := await file.read(1024 * 1024):  # 1MB chunks
+                buffer.write(chunk)
+    except Exception as e:
+        if filepath.exists():
+            filepath.unlink()
+        raise HTTPException(status_code=500, detail=f"Erreur upload: {str(e)}")
+    
+    file_size = filepath.stat().st_size
+    return {
+        "filename": filename,
+        "original_name": file.filename,
+        "size": file_size,
+        "content_type": file.content_type,
+    }
+
+@api_router.get("/videos/{filename}")
+async def serve_video(filename: str):
+    filepath = UPLOAD_DIR / filename
+    if not filepath.exists():
+        raise HTTPException(status_code=404, detail="Video non trouvee")
+    
+    content_type = "video/mp4"
+    if filename.endswith(".webm"):
+        content_type = "video/webm"
+    elif filename.endswith(".ogg"):
+        content_type = "video/ogg"
+    
+    return FileResponse(
+        filepath,
+        media_type=content_type,
+        filename=filename,
+    )
+
+@api_router.get("/videos")
+async def list_videos(current_user: dict = Depends(auth_dependency)):
+    if current_user["role"] not in ["admin", "formateur"]:
+        raise HTTPException(status_code=403, detail="Acces refuse")
+    
+    videos = []
+    if UPLOAD_DIR.exists():
+        for f in UPLOAD_DIR.iterdir():
+            if f.is_file() and f.suffix in [".mp4", ".webm", ".ogg", ".avi", ".mkv"]:
+                videos.append({
+                    "filename": f.name,
+                    "size": f.stat().st_size,
+                    "modified": datetime.fromtimestamp(f.stat().st_mtime, tz=timezone.utc).isoformat(),
+                })
+    return videos
 
 
 # ─── Proxmox + Guacamole Lab Integration ───

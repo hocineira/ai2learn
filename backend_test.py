@@ -4,7 +4,7 @@ import json
 from datetime import datetime
 
 class AI2LeanBackendTester:
-    def __init__(self, base_url="https://lean-training-hub.preview.emergentagent.com/api"):
+    def __init__(self, base_url="https://guac-edu-platform.preview.emergentagent.com/api"):
         self.base_url = base_url
         self.tokens = {}  # Store tokens for different users (admin, formateur, etudiant1, ais_student1)
         self.test_data = {}  # Store created test data

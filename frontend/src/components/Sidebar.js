@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, BookOpen, Users, BarChart3, LogOut, PlusCircle, ClipboardList, Settings, ChevronLeft, ChevronRight, GraduationCap, Shield, Monitor } from 'lucide-react';
+import { LayoutDashboard, BookOpen, Users, BarChart3, LogOut, PlusCircle, ClipboardList, Settings, ChevronLeft, ChevronRight, GraduationCap, Shield, Monitor, Video } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -34,6 +34,7 @@ export const Sidebar = ({ children }) => {
       { to: '/users', icon: Users, label: 'Utilisateurs' },
       { to: '/exercises', icon: BookOpen, label: 'Exercices' },
       { to: '/exercises/create', icon: PlusCircle, label: 'Creer un exercice' },
+      { to: '/courses', icon: Video, label: 'Cours' },
       { to: '/labs', icon: Monitor, label: 'Labs pratiques' },
       { to: '/tracking', icon: BarChart3, label: 'Suivi etudiants' },
       { to: '/submissions', icon: ClipboardList, label: 'Soumissions' },
@@ -42,6 +43,7 @@ export const Sidebar = ({ children }) => {
       { to: '/dashboard', icon: LayoutDashboard, label: 'Tableau de bord' },
       { to: '/exercises', icon: BookOpen, label: 'Exercices' },
       { to: '/exercises/create', icon: PlusCircle, label: 'Creer un exercice' },
+      { to: '/courses', icon: Video, label: 'Cours' },
       { to: '/labs', icon: Monitor, label: 'Labs pratiques' },
       { to: '/tracking', icon: Users, label: 'Suivi etudiants' },
       { to: '/submissions', icon: ClipboardList, label: 'Soumissions' },
@@ -49,6 +51,7 @@ export const Sidebar = ({ children }) => {
     etudiant: [
       { to: '/dashboard', icon: LayoutDashboard, label: 'Tableau de bord' },
       { to: '/exercises', icon: BookOpen, label: 'Exercices' },
+      { to: '/courses', icon: Video, label: 'Cours' },
       { to: '/labs', icon: Monitor, label: 'Labs pratiques' },
       { to: '/results', icon: BarChart3, label: 'Mes resultats' },
     ],
