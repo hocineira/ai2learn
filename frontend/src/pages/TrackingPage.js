@@ -13,7 +13,7 @@ import {
 const CustomTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-zinc-900 border border-gray-300 dark:border-zinc-700 rounded-lg px-3 py-2 shadow-xl">
+      <div className="bg-white dark:bg-zinc-900 border border-gray-300 dark:border-zinc-700 rounded-lg px-3 py-2 shadow-xl">
         <p className="text-xs text-gray-500 dark:text-zinc-400 mb-1">{label}</p>
         {payload.map((p, i) => (
           <p key={i} className="text-sm font-medium" style={{ color: p.color }}>
@@ -82,7 +82,7 @@ export default function TrackingPage() {
           </h1>
           <p className="text-gray-500 dark:text-zinc-500 mt-1">{formationLabel} - {tracking.length} etudiant{tracking.length !== 1 ? 's' : ''}</p>
         </div>
-        <Button variant="outline" size="sm" className="bg-gray-50 dark:bg-zinc-900 border-gray-300 dark:border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-zinc-300 hover:bg-zinc-800 hover:text-cyan-400" onClick={handleExportCSV} data-testid="export-tracking-btn">
+        <Button variant="outline" size="sm" className="bg-gray-50 dark:bg-zinc-900 border-gray-300 dark:border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-zinc-300 hover:bg-gray-200 dark:hover:bg-zinc-800 hover:text-cyan-400" onClick={handleExportCSV} data-testid="export-tracking-btn">
           <Download className="w-4 h-4 mr-2" /> Exporter CSV
         </Button>
       </div>

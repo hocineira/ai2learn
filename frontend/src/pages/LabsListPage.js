@@ -119,11 +119,11 @@ export default function LabsListPage() {
                             <BookOpen className="w-3 h-3 mr-1" /> Cours disponible
                           </Badge>
                         )}
-                        <Badge className="bg-zinc-800 text-gray-500 dark:text-zinc-400 border-gray-300 dark:border-zinc-700 text-[10px]">
+                        <Badge className="bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 border-gray-300 dark:border-zinc-700 text-[10px]">
                           {ex.category}
                         </Badge>
                         {ex.time_limit > 0 && (
-                          <Badge className="bg-zinc-800 text-gray-500 dark:text-zinc-400 border-gray-300 dark:border-zinc-700 text-[10px]">
+                          <Badge className="bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 border-gray-300 dark:border-zinc-700 text-[10px]">
                             <Clock className="w-3 h-3 mr-1" /> {ex.time_limit} min
                           </Badge>
                         )}

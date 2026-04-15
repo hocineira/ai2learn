@@ -135,10 +135,10 @@ export default function ResultsPage() {
             <ArrowLeft className="w-4 h-4 mr-2" /> Retour
           </Button>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" className="bg-gray-50 dark:bg-zinc-900 border-gray-300 dark:border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-zinc-300 hover:bg-zinc-800 hover:text-cyan-400" onClick={() => handleExportCSV(detail.id)} data-testid="export-result-csv">
+            <Button variant="outline" size="sm" className="bg-gray-50 dark:bg-zinc-900 border-gray-300 dark:border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-zinc-300 hover:bg-gray-200 dark:hover:bg-zinc-800 hover:text-cyan-400" onClick={() => handleExportCSV(detail.id)} data-testid="export-result-csv">
               <Download className="w-4 h-4 mr-1" /> CSV
             </Button>
-            <Button variant="outline" size="sm" className="bg-gray-50 dark:bg-zinc-900 border-gray-300 dark:border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-zinc-300 hover:bg-zinc-800 hover:text-violet-400" onClick={() => handleExportPDF(detail)} data-testid="export-result-pdf">
+            <Button variant="outline" size="sm" className="bg-gray-50 dark:bg-zinc-900 border-gray-300 dark:border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-zinc-300 hover:bg-gray-200 dark:hover:bg-zinc-800 hover:text-violet-400" onClick={() => handleExportPDF(detail)} data-testid="export-result-pdf">
               <FileText className="w-4 h-4 mr-1" /> PDF
             </Button>
           </div>
@@ -182,7 +182,7 @@ export default function ResultsPage() {
 
         {/* AI Feedback */}
         {detail.ai_feedback && (
-          <Card className="bg-zinc-900/50 backdrop-blur-md border-cyan-500/20">
+          <Card className="bg-white dark:bg-zinc-900/50 backdrop-blur-md border-cyan-500/20">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm flex items-center gap-2 text-cyan-400" style={{ fontFamily: 'Space Grotesk' }}>
                 <Cpu className="w-4 h-4" /> Feedback IA

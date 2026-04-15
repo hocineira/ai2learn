@@ -21,7 +21,7 @@ const COLORS = ['#f43f5e', '#f59e0b', '#3b82f6', '#06b6d4', '#10b981'];
 const CustomTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-zinc-900 border border-gray-300 dark:border-zinc-700 rounded-lg px-3 py-2 shadow-xl">
+      <div className="bg-white dark:bg-zinc-900 border border-gray-300 dark:border-zinc-700 rounded-lg px-3 py-2 shadow-xl">
         <p className="text-xs text-gray-500 dark:text-zinc-400 mb-1">{label}</p>
         {payload.map((p, i) => (
           <p key={i} className="text-sm font-medium" style={{ color: p.color }}>
@@ -97,10 +97,10 @@ export default function AdminDashboard() {
           <p className="text-gray-500 dark:text-zinc-500 mt-1">Vue d'ensemble - NETBFRS Academy</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" className="bg-gray-50 dark:bg-zinc-900 border-gray-300 dark:border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-zinc-300 hover:bg-zinc-800 hover:text-cyan-400" onClick={() => handleExportCSV('submissions-csv')} data-testid="export-submissions-csv">
+          <Button variant="outline" size="sm" className="bg-gray-50 dark:bg-zinc-900 border-gray-300 dark:border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-zinc-300 hover:bg-gray-200 dark:hover:bg-zinc-800 hover:text-cyan-400" onClick={() => handleExportCSV('submissions-csv')} data-testid="export-submissions-csv">
             <Download className="w-4 h-4 mr-2" /> Export soumissions
           </Button>
-          <Button variant="outline" size="sm" className="bg-gray-50 dark:bg-zinc-900 border-gray-300 dark:border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-zinc-300 hover:bg-zinc-800 hover:text-cyan-400" onClick={() => handleExportCSV('tracking-csv')} data-testid="export-tracking-csv">
+          <Button variant="outline" size="sm" className="bg-gray-50 dark:bg-zinc-900 border-gray-300 dark:border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-zinc-300 hover:bg-gray-200 dark:hover:bg-zinc-800 hover:text-cyan-400" onClick={() => handleExportCSV('tracking-csv')} data-testid="export-tracking-csv">
             <Download className="w-4 h-4 mr-2" /> Export suivi
           </Button>
         </div>

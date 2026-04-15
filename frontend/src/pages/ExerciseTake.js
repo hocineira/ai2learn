@@ -139,7 +139,7 @@ export default function ExerciseTake() {
           <p className="text-gray-500 dark:text-zinc-500 text-sm mt-1">{exercise.description}</p>
         </div>
         {timeLeft !== null && (
-          <div className={`flex items-center gap-2 px-4 py-2 rounded-lg border ${timeLeft < 60 ? 'bg-red-500/10 border-red-500/30 text-red-400' : 'bg-zinc-800 border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-zinc-300'}`}>
+          <div className={`flex items-center gap-2 px-4 py-2 rounded-lg border ${timeLeft < 60 ? 'bg-red-500/10 border-red-500/30 text-red-400' : 'bg-gray-100 dark:bg-zinc-800 border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-zinc-300'}`}>
             <Clock className="w-4 h-4" />
             <span className="font-mono text-lg" style={{ fontFamily: 'JetBrains Mono' }}>{formatTime(timeLeft)}</span>
           </div>
@@ -231,7 +231,7 @@ export default function ExerciseTake() {
         {currentQ < questions.length - 1 ? (
           <Button
             onClick={() => setCurrentQ(currentQ + 1)}
-            className="bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 text-gray-800 dark:text-zinc-200"
+            className="bg-gray-200 dark:bg-zinc-800 hover:bg-gray-300 dark:hover:bg-zinc-700 text-gray-800 dark:text-zinc-200"
             data-testid="next-question-btn"
           >
             Suivante

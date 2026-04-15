@@ -78,7 +78,7 @@ export default function ExercisesPage() {
       </div>
 
       <Tabs value={activeCategory} onValueChange={setActiveCategory}>
-        <TabsList className="bg-zinc-900 border border-gray-200 dark:border-zinc-800 p-1 flex-wrap h-auto gap-1">
+        <TabsList className="bg-gray-100 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 p-1 flex-wrap h-auto gap-1">
           <TabsTrigger value="all" className="data-[state=active]:bg-cyan-500/20 data-[state=active]:text-cyan-400 text-xs">Tous</TabsTrigger>
           {categories.map((cat) => {
             const Icon = iconMap[cat.icon] || BookOpen;
@@ -97,7 +97,7 @@ export default function ExercisesPage() {
           const Icon = catMeta ? (iconMap[catMeta.icon] || BookOpen) : BookOpen;
           const isCompleted = completedIds.has(ex.id);
           return (
-            <Card key={ex.id} className="group relative overflow-hidden bg-zinc-900 border border-gray-200 dark:border-zinc-800 hover:border-cyan-500/50 transition-all duration-300 cursor-pointer animate-fade-in-up"
+            <Card key={ex.id} className="group relative overflow-hidden bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 hover:border-cyan-500/50 transition-all duration-300 cursor-pointer animate-fade-in-up shadow-sm dark:shadow-none"
               style={{ animationDelay: `${i * 0.05}s` }} onClick={() => navigate(ex.exercise_type === 'lab' ? `/labs/${ex.id}` : `/exercises/${ex.id}`)} data-testid={`exercise-card-${ex.id}`}>
               <CardContent className="p-5">
                 <div className="flex items-start justify-between mb-3">

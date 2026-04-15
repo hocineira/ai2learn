@@ -102,7 +102,7 @@ export default function CoursePage() {
               </Badge>
             )}
             {exercise.time_limit > 0 && (
-              <Badge className="bg-zinc-800 text-gray-500 dark:text-zinc-400 border-gray-300 dark:border-zinc-700">
+              <Badge className="bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 border-gray-300 dark:border-zinc-700">
                 <Clock className="w-3 h-3 mr-1" /> {exercise.time_limit} min
               </Badge>
             )}
@@ -283,7 +283,7 @@ export default function CoursePage() {
 
       {/* Lab instructions if any */}
       {exercise.lab_instructions && (
-        <Card className="bg-zinc-900/50 backdrop-blur-md border-amber-500/20">
+        <Card className="bg-white dark:bg-zinc-900/50 backdrop-blur-md border-amber-500/20">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm flex items-center gap-2 text-amber-400" style={{ fontFamily: 'Space Grotesk' }}>
               <AlertCircle className="w-4 h-4" /> Instructions du lab

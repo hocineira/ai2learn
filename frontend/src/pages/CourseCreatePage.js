@@ -290,7 +290,7 @@ export default function CourseCreatePage() {
         <CardHeader className="pb-3">
           <CardTitle className="text-sm flex items-center gap-2 text-orange-400" style={{ fontFamily: 'Space Grotesk' }}>
             <Link2 className="w-4 h-4" /> Exercice Lab associe
-            <Badge className="bg-zinc-800 text-gray-500 dark:text-zinc-500 border-gray-300 dark:border-zinc-700 text-[10px] ml-2">Optionnel</Badge>
+            <Badge className="bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-zinc-500 border-gray-300 dark:border-zinc-700 text-[10px] ml-2">Optionnel</Badge>
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -343,7 +343,7 @@ export default function CourseCreatePage() {
         <CardHeader className="pb-3">
           <CardTitle className="text-sm flex items-center gap-2 text-cyan-400" style={{ fontFamily: 'Space Grotesk' }}>
             <Video className="w-4 h-4" /> Video du cours (MP4)
-            <Badge className="bg-zinc-800 text-gray-500 dark:text-zinc-500 border-gray-300 dark:border-zinc-700 text-[10px] ml-2">Optionnel</Badge>
+            <Badge className="bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-zinc-500 border-gray-300 dark:border-zinc-700 text-[10px] ml-2">Optionnel</Badge>
           </CardTitle>
         </CardHeader>
         <CardContent>

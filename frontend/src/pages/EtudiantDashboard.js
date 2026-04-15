@@ -15,7 +15,7 @@ import {
 const CustomTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-zinc-900 border border-gray-300 dark:border-zinc-700 rounded-lg px-3 py-2 shadow-xl">
+      <div className="bg-white dark:bg-zinc-900 border border-gray-300 dark:border-zinc-700 rounded-lg px-3 py-2 shadow-xl">
         <p className="text-xs text-gray-500 dark:text-zinc-400 mb-1">{label}</p>
         {payload.map((p, i) => (
           <p key={i} className="text-sm font-medium" style={{ color: p.color }}>
@@ -200,7 +200,7 @@ export default function EtudiantDashboard() {
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-gray-800 dark:text-zinc-200 group-hover:text-cyan-400 transition-colors">{ex.title}</p>
                     <div className="flex items-center gap-2 mt-1">
-                      <Badge className="bg-zinc-800 text-gray-500 dark:text-zinc-400 border-gray-300 dark:border-zinc-700 text-[10px]">{ex.category}</Badge>
+                      <Badge className="bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 border-gray-300 dark:border-zinc-700 text-[10px]">{ex.category}</Badge>
                       <span className="text-xs text-gray-500 dark:text-zinc-500">{ex.questions?.length} Q</span>
                       {ex.time_limit > 0 && <span className="text-xs text-gray-500 dark:text-zinc-500 flex items-center gap-1"><Clock className="w-3 h-3" /> {ex.time_limit} min</span>}
                     </div>

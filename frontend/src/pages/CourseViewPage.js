@@ -263,7 +263,7 @@ export default function CourseViewPage() {
 
       {/* Lab instructions + CTA if exercise linked */}
       {hasLab && exercise.lab_instructions && (
-        <Card className="bg-zinc-900/50 backdrop-blur-md border-amber-500/20">
+        <Card className="bg-white dark:bg-zinc-900/50 backdrop-blur-md border-amber-500/20">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm flex items-center gap-2 text-amber-400" style={{ fontFamily: 'Space Grotesk' }}>
               <AlertCircle className="w-4 h-4" /> Instructions du lab

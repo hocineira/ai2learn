@@ -191,7 +191,7 @@ export default function LabPage() {
             <Monitor className="w-3 h-3 mr-1" /> Lab pratique
           </Badge>
           {exercise.time_limit > 0 && (
-            <Badge className="bg-zinc-800 text-gray-500 dark:text-zinc-400 border-gray-300 dark:border-zinc-700">
+            <Badge className="bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 border-gray-300 dark:border-zinc-700">
               <Clock className="w-3 h-3 mr-1" /> {exercise.time_limit} min
             </Badge>
           )}
@@ -219,7 +219,7 @@ export default function LabPage() {
       )}
 
       {/* Lab Status */}
-      <Card className={`bg-zinc-900/50 backdrop-blur-md ${isRunning && hasIP ? 'border-emerald-500/30' : isProvisioning ? 'border-cyan-500/30' : isError ? 'border-red-500/30' : 'border-gray-200 dark:border-zinc-800'}`}>
+      <Card className={`bg-white dark:bg-zinc-900/50 backdrop-blur-md ${isRunning && hasIP ? 'border-emerald-500/30' : isProvisioning ? 'border-cyan-500/30' : isError ? 'border-red-500/30' : 'border-gray-200 dark:border-zinc-800'}`}>
         <CardContent className="p-6">
 
           {/* Error state */}
@@ -467,7 +467,7 @@ export default function LabPage() {
                     </div>
                   ))}
                 </div>
-                <Button className="mt-4 w-full bg-gray-200 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-700 text-gray-700 dark:text-zinc-300" onClick={() => navigate(`/results/${submitted.id}`)}>
+                <Button className="mt-4 w-full bg-gray-200 dark:bg-gray-200 dark:bg-zinc-800 hover:bg-gray-300 dark:hover:bg-zinc-700 text-gray-700 dark:text-zinc-300" onClick={() => navigate(`/results/${submitted.id}`)}>
                   Voir le detail du resultat
                 </Button>
               </div>

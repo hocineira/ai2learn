@@ -115,17 +115,17 @@ export default function CoursesListPage() {
                         </Badge>
                       )}
                       {course.duration_estimate && (
-                        <Badge className="bg-zinc-800 text-gray-500 dark:text-zinc-400 border-gray-300 dark:border-zinc-700 text-[10px]">
+                        <Badge className="bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 border-gray-300 dark:border-zinc-700 text-[10px]">
                           <Clock className="w-3 h-3 mr-1" /> {course.duration_estimate}
                         </Badge>
                       )}
                       {course.objectives?.length > 0 && (
-                        <Badge className="bg-emerald-500/15 text-emerald-400 border-emerald-500/30 text-[10px]">
+                        <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[10px]">
                           <Target className="w-3 h-3 mr-1" /> {course.objectives.length} objectif{course.objectives.length > 1 ? 's' : ''}
                         </Badge>
                       )}
                       {categoryLabel && (
-                        <Badge className="bg-zinc-800 text-gray-500 dark:text-zinc-400 border-gray-300 dark:border-zinc-700 text-[10px]">
+                        <Badge className="bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 border-gray-300 dark:border-zinc-700 text-[10px]">
                           {categoryLabel}
                         </Badge>
                       )}
