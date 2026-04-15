@@ -1,7 +1,7 @@
 import requests
 import json
 
-BACKEND_URL = "https://guac-edu-platform.preview.emergentagent.com/api"
+BACKEND_URL = "https://api-corrector.preview.emergentagent.com/api"
 
 # Get admin token
 admin_login = {"username": "admin", "password": "admin123"}

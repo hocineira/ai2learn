@@ -17,7 +17,7 @@ import os
 from datetime import datetime
 
 # Get backend URL from frontend .env
-BACKEND_URL = "https://guac-edu-platform.preview.emergentagent.com/api"
+BACKEND_URL = "https://api-corrector.preview.emergentagent.com/api"
 print(f"Testing backend at: {BACKEND_URL}")
 
 class TestResults:
