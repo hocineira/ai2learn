@@ -88,12 +88,33 @@ async def call_llm(system_message: str, user_message: str, session_id: str = "gr
     if LLM_PROVIDER == "google":
         import google.generativeai as genai
         genai.configure(api_key=LLM_KEY)
-        model = genai.GenerativeModel(
-            model_name="gemini-2.0-flash",
-            system_instruction=system_message
-        )
-        response = model.generate_content(user_message)
-        return response.text
+        
+        # Try models in order of preference (free tier compatible)
+        models_to_try = ["gemini-1.5-flash", "gemini-2.0-flash-lite", "gemini-2.0-flash", "gemini-1.5-pro"]
+        last_error = None
+        
+        for model_name in models_to_try:
+            try:
+                model = genai.GenerativeModel(
+                    model_name=model_name,
+                    system_instruction=system_message
+                )
+                response = model.generate_content(user_message)
+                logger.info(f"LLM Google repondu avec {model_name}")
+                return response.text
+            except Exception as e:
+                last_error = e
+                error_str = str(e)
+                if "429" in error_str or "quota" in error_str.lower():
+                    logger.warning(f"Quota depasse pour {model_name}, essai suivant...")
+                    continue
+                elif "not found" in error_str.lower() or "not supported" in error_str.lower():
+                    logger.warning(f"Modele {model_name} non disponible, essai suivant...")
+                    continue
+                else:
+                    raise e
+        
+        raise Exception(f"Tous les modeles Google ont echoue. Derniere erreur: {last_error}")
     
     elif LLM_PROVIDER == "emergent":
         from emergentintegrations.llm.chat import LlmChat, UserMessage
@@ -107,16 +128,18 @@ async def call_llm(system_message: str, user_message: str, session_id: str = "gr
         return response
     
     else:
-        # Fallback: try Google
+        # Fallback: try Google with multiple models
         try:
             import google.generativeai as genai
             genai.configure(api_key=LLM_KEY)
-            model = genai.GenerativeModel(
-                model_name="gemini-2.0-flash",
-                system_instruction=system_message
-            )
-            response = model.generate_content(user_message)
-            return response.text
+            for model_name in ["gemini-1.5-flash", "gemini-2.0-flash-lite"]:
+                try:
+                    model = genai.GenerativeModel(model_name=model_name, system_instruction=system_message)
+                    response = model.generate_content(user_message)
+                    return response.text
+                except Exception:
+                    continue
+            raise Exception("Aucun modele disponible")
         except Exception as e:
             raise Exception(f"LLM non disponible: {e}")
 
