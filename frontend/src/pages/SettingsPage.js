@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Settings, Key, Save, Loader2, CheckCircle2, XCircle, Eye, EyeOff, User, Lock } from 'lucide-react';
+import { Settings, Key, Save, Loader2, CheckCircle2, XCircle, Eye, EyeOff, User, Lock, KeyRound, Send } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function SettingsPage() {
@@ -22,6 +22,11 @@ export default function SettingsPage() {
   const [currentPwd, setCurrentPwd] = useState('');
   const [newPwd, setNewPwd] = useState('');
   const [savingProfile, setSavingProfile] = useState(false);
+
+  // Password change request (student)
+  const [pwdReason, setPwdReason] = useState('');
+  const [requestingPwd, setRequestingPwd] = useState(false);
+  const [pwdRequested, setPwdRequested] = useState(false);
 
   const [llmProvider, setLlmProvider] = useState('');
   const [llmActive, setLlmActive] = useState(false);
@@ -90,6 +95,19 @@ export default function SettingsPage() {
     setSavingProfile(false);
   };
 
+  const handleRequestPasswordChange = async () => {
+    setRequestingPwd(true);
+    try {
+      await axios.post(`${API}/password-change-request`, { reason: pwdReason || null }, { headers: getAuthHeaders() });
+      toast.success('Demande envoyee ! L\'administrateur sera notifie.');
+      setPwdRequested(true);
+      setPwdReason('');
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Erreur lors de la demande');
+    }
+    setRequestingPwd(false);
+  };
+
   if (loading) return <div className="th-text-muted text-center py-20">Chargement...</div>;
 
   return (
@@ -134,6 +152,57 @@ export default function SettingsPage() {
           </Button>
         </CardContent>
       </Card>
+
+      {/* Password Change Request (Students) */}
+      {user?.role === 'etudiant' && (
+        <Card className="bg-white dark:bg-zinc-900/50 border-gray-200 dark:border-zinc-800 shadow-sm dark:shadow-none">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm flex items-center gap-2 text-amber-600 dark:text-amber-400" style={{ fontFamily: 'Space Grotesk' }}>
+              <KeyRound className="w-4 h-4" /> Demande de changement de mot de passe
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm th-text-secondary">
+              Si vous ne pouvez pas changer votre mot de passe vous-meme (mot de passe oublie), 
+              envoyez une demande a l'administrateur. Il sera notifie et pourra modifier votre mot de passe.
+            </p>
+            
+            {pwdRequested ? (
+              <div className="flex items-center gap-2 p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg">
+                <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+                <p className="text-sm text-emerald-700 dark:text-emerald-400">
+                  Votre demande a ete envoyee. L'administrateur sera notifie et changera votre mot de passe.
+                </p>
+              </div>
+            ) : (
+              <>
+                <div>
+                  <label className="text-xs font-mono th-text-faint uppercase tracking-wider mb-2 block">
+                    Raison (optionnel)
+                  </label>
+                  <Input
+                    value={pwdReason}
+                    onChange={(e) => setPwdReason(e.target.value)}
+                    placeholder="Ex: Mot de passe oublie, compromis..."
+                    className="bg-gray-50 dark:bg-zinc-900 border-gray-300 dark:border-zinc-700 text-gray-900 dark:text-zinc-100"
+                  />
+                </div>
+                <Button
+                  onClick={handleRequestPasswordChange}
+                  disabled={requestingPwd}
+                  className="bg-amber-600 hover:bg-amber-500 text-white"
+                >
+                  {requestingPwd ? (
+                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Envoi en cours...</>
+                  ) : (
+                    <><Send className="w-4 h-4 mr-2" /> Envoyer la demande</>
+                  )}
+                </Button>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* LLM Key Section (Admin only) */}
       {user?.role === 'admin' && (

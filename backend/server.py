@@ -227,6 +227,7 @@ class UserLogin(BaseModel):
 class UserUpdate(BaseModel):
     role: Optional[str] = None
     formation: Optional[str] = None
+    new_password: Optional[str] = None
 
 class ExerciseQuestion(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -401,6 +402,8 @@ async def update_user(user_id: str, data: UserUpdate, current_user: dict = Depen
         update["role"] = data.role
     if data.formation and data.formation in [f["id"] for f in FORMATIONS]:
         update["formation"] = data.formation
+    if data.new_password and data.new_password.strip():
+        update["password"] = hash_password(data.new_password.strip())
     if not update:
         raise HTTPException(status_code=400, detail="Rien a mettre a jour")
     result = await db.users.update_one({"id": user_id}, {"$set": update})
@@ -1266,6 +1269,78 @@ async def update_user_profile(data: ProfileUpdate, current_user: dict = Depends(
     
     await db.users.update_one({"id": current_user["id"]}, {"$set": update})
     return {"message": "Profil mis a jour"}
+
+class PasswordChangeRequest(BaseModel):
+    reason: Optional[str] = None
+
+@api_router.post("/password-change-request")
+async def request_password_change(data: PasswordChangeRequest, current_user: dict = Depends(auth_dependency)):
+    """Student requests a password change - notifies all admins"""
+    # Check if there's already a pending request
+    existing = await db.password_requests.find_one({
+        "user_id": current_user["id"],
+        "status": "pending"
+    }, {"_id": 0})
+    if existing:
+        raise HTTPException(status_code=400, detail="Vous avez deja une demande en cours")
+    
+    # Create the request
+    request_id = str(uuid.uuid4())
+    request_doc = {
+        "id": request_id,
+        "user_id": current_user["id"],
+        "user_name": current_user["full_name"],
+        "user_email": current_user.get("email", current_user.get("username", "")),
+        "reason": data.reason or "Changement de mot de passe demande",
+        "status": "pending",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.password_requests.insert_one(request_doc)
+    
+    # Notify all admins
+    admins = await db.users.find({"role": "admin"}, {"_id": 0, "id": 1}).to_list(50)
+    for admin in admins:
+        await create_notification(
+            user_id=admin["id"],
+            title="Demande de changement de mot de passe",
+            message=f"{current_user['full_name']} ({current_user.get('email', '')}) demande un changement de mot de passe. Raison: {data.reason or 'Non precisee'}",
+            notif_type="password_request",
+            link=f"/users"
+        )
+    
+    return {"message": "Demande envoyee. L'administrateur sera notifie."}
+
+@api_router.get("/password-requests")
+async def get_password_requests(current_user: dict = Depends(auth_dependency)):
+    """Admin: get all password change requests"""
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin uniquement")
+    requests = await db.password_requests.find({}, {"_id": 0}).sort("created_at", -1).to_list(100)
+    return requests
+
+@api_router.put("/password-requests/{request_id}")
+async def handle_password_request(request_id: str, current_user: dict = Depends(auth_dependency)):
+    """Admin: mark a password request as handled"""
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin uniquement")
+    result = await db.password_requests.update_one(
+        {"id": request_id},
+        {"$set": {"status": "done", "handled_by": current_user["id"], "handled_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Demande non trouvee")
+    
+    # Notify the student
+    req = await db.password_requests.find_one({"id": request_id}, {"_id": 0})
+    if req:
+        await create_notification(
+            user_id=req["user_id"],
+            title="Mot de passe modifie",
+            message="L'administrateur a modifie votre mot de passe. Contactez-le pour obtenir votre nouveau mot de passe.",
+            notif_type="info",
+        )
+    
+    return {"message": "Demande traitee"}
 
 
 # ─── Seed Data ───

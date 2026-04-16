@@ -6,7 +6,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Trash2, GraduationCap, Shield } from 'lucide-react';
+import { Trash2, GraduationCap, Shield, KeyRound, X } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 
 const roleColors = {
@@ -24,6 +25,8 @@ export default function UsersPage() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filterFormation, setFilterFormation] = useState('all');
+  const [pwdModal, setPwdModal] = useState(null); // { userId, userName }
+  const [newPwd, setNewPwd] = useState('');
 
   useEffect(() => { fetchUsers(); }, []);
 
@@ -49,6 +52,27 @@ export default function UsersPage() {
       await axios.delete(`${API}/users/${userId}`, { headers: getAuthHeaders() });
       toast.success('Utilisateur supprime');
       setUsers(users.filter(u => u.id !== userId));
+    } catch (err) { toast.error(err.response?.data?.detail || 'Erreur'); }
+  };
+
+  const handleChangePassword = async () => {
+    if (!newPwd.trim() || newPwd.length < 4) {
+      toast.error('Le mot de passe doit faire au moins 4 caracteres');
+      return;
+    }
+    try {
+      await axios.put(`${API}/users/${pwdModal.userId}`, { new_password: newPwd }, { headers: getAuthHeaders() });
+      toast.success(`Mot de passe de ${pwdModal.userName} modifie`);
+      setPwdModal(null);
+      setNewPwd('');
+      // Mark any pending password request as done
+      try {
+        const reqsRes = await axios.get(`${API}/password-requests`, { headers: getAuthHeaders() });
+        const pending = (reqsRes.data || []).find(r => r.user_id === pwdModal.userId && r.status === 'pending');
+        if (pending) {
+          await axios.put(`${API}/password-requests/${pending.id}`, {}, { headers: getAuthHeaders() });
+        }
+      } catch {}
     } catch (err) { toast.error(err.response?.data?.detail || 'Erreur'); }
   };
 
@@ -133,9 +157,14 @@ export default function UsersPage() {
                     <TableCell className="text-sm text-gray-500 dark:text-zinc-400">{u.created_at ? new Date(u.created_at).toLocaleDateString('fr-FR') : '-'}</TableCell>
                     <TableCell className="text-right">
                       {currentUser?.role === 'admin' && u.id !== currentUser.id && (
-                        <Button size="icon" variant="ghost" className="h-7 w-7 text-red-400 hover:text-red-300 hover:bg-red-500/10" onClick={() => deleteUser(u.id)} data-testid={`delete-user-${u.id}`}>
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </Button>
+                        <div className="flex items-center justify-end gap-1">
+                          <Button size="icon" variant="ghost" className="h-7 w-7 text-amber-400 hover:text-amber-300 hover:bg-amber-500/10" onClick={() => { setPwdModal({ userId: u.id, userName: u.full_name }); setNewPwd(''); }} title="Changer le mot de passe" data-testid={`pwd-user-${u.id}`}>
+                            <KeyRound className="w-3.5 h-3.5" />
+                          </Button>
+                          <Button size="icon" variant="ghost" className="h-7 w-7 text-red-400 hover:text-red-300 hover:bg-red-500/10" onClick={() => deleteUser(u.id)} data-testid={`delete-user-${u.id}`}>
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
                       )}
                     </TableCell>
                   </TableRow>
@@ -145,6 +174,42 @@ export default function UsersPage() {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Password Change Modal */}
+      {pwdModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={() => setPwdModal(null)}>
+          <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-xl shadow-2xl w-full max-w-md p-6 animate-scale-in" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold th-text" style={{ fontFamily: 'Space Grotesk' }}>
+                <KeyRound className="w-5 h-5 inline mr-2 text-amber-400" />
+                Changer le mot de passe
+              </h3>
+              <button onClick={() => setPwdModal(null)} className="th-text-muted hover:th-text">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <p className="text-sm th-text-secondary mb-4">
+              Nouveau mot de passe pour <strong>{pwdModal.userName}</strong>
+            </p>
+            <Input
+              type="text"
+              value={newPwd}
+              onChange={(e) => setNewPwd(e.target.value)}
+              placeholder="Nouveau mot de passe"
+              className="bg-gray-50 dark:bg-zinc-800 border-gray-300 dark:border-zinc-700 text-gray-900 dark:text-zinc-100 mb-4"
+              autoFocus
+            />
+            <div className="flex items-center gap-3 justify-end">
+              <Button variant="outline" className="border-gray-300 dark:border-zinc-700 th-text-muted" onClick={() => setPwdModal(null)}>
+                Annuler
+              </Button>
+              <Button onClick={handleChangePassword} disabled={!newPwd.trim()} className="bg-amber-600 hover:bg-amber-500 text-white">
+                <KeyRound className="w-4 h-4 mr-2" /> Changer
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
