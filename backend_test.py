@@ -1,373 +1,526 @@
 #!/usr/bin/env python3
 """
-AI2Lean Backend API Testing Script
-Tests image upload, course CRUD with images, and LLM settings endpoints
+AI2Lean Backend Email Change Features Test Suite
+Tests all email change related endpoints and functionality
 """
 
 import requests
 import json
-import os
-import tempfile
-from PIL import Image
-import io
+import sys
+from typing import Dict, Optional
 
-# Configuration
-BASE_URL = "https://salut-check-3.preview.emergentagent.com/api"
+# Backend URL from frontend .env
+BACKEND_URL = "https://salut-check-3.preview.emergentagent.com/api"
 
 # Test credentials
 ADMIN_CREDS = {"email": "admin@netbfrs.fr", "password": "admin123"}
 FORMATEUR_CREDS = {"email": "formateur@netbfrs.fr", "password": "formateur123"}
 STUDENT_CREDS = {"email": "alice.martin@netbfrs.fr", "password": "etudiant123"}
+STUDENT2_CREDS = {"email": "bob.durand@netbfrs.fr", "password": "etudiant123"}
 
-class APITester:
+class TestSession:
     def __init__(self):
         self.session = requests.Session()
-        self.admin_token = None
-        self.formateur_token = None
-        self.student_token = None
+        self.tokens = {}
         self.test_results = []
         
-    def log_result(self, test_name, success, details=""):
-        """Log test result"""
-        status = "✅ PASS" if success else "❌ FAIL"
-        self.test_results.append(f"{status} {test_name}: {details}")
-        print(f"{status} {test_name}: {details}")
-        
-    def login(self, credentials, role_name):
-        """Login and return token"""
+    def login(self, credentials: Dict[str, str], role: str) -> Optional[str]:
+        """Login and return JWT token"""
         try:
-            response = self.session.post(f"{BASE_URL}/auth/login", json=credentials)
+            response = self.session.post(f"{BACKEND_URL}/auth/login", json=credentials)
             if response.status_code == 200:
                 data = response.json()
                 token = data.get("token")
-                self.log_result(f"{role_name} login", True, f"Token received")
+                self.tokens[role] = token
+                print(f"✅ Login successful for {role}: {credentials['email']}")
                 return token
             else:
-                self.log_result(f"{role_name} login", False, f"Status {response.status_code}: {response.text}")
+                print(f"❌ Login failed for {role}: {response.status_code} - {response.text}")
                 return None
         except Exception as e:
-            self.log_result(f"{role_name} login", False, f"Exception: {str(e)}")
+            print(f"❌ Login error for {role}: {str(e)}")
             return None
     
-    def create_test_image(self, filename="test_image.png"):
-        """Create a test image file"""
-        img = Image.new('RGB', (100, 100), color='red')
-        img_bytes = io.BytesIO()
-        img.save(img_bytes, format='PNG')
-        img_bytes.seek(0)
-        return img_bytes
+    def make_request(self, method: str, endpoint: str, token: str, **kwargs) -> requests.Response:
+        """Make authenticated request"""
+        headers = {"Authorization": f"Bearer {token}"}
+        if "headers" in kwargs:
+            kwargs["headers"].update(headers)
+        else:
+            kwargs["headers"] = headers
+        
+        url = f"{BACKEND_URL}{endpoint}"
+        return self.session.request(method, url, **kwargs)
     
-    def test_image_upload_endpoint(self):
-        """Test image upload functionality"""
-        print("\n=== Testing Image Upload Endpoint ===")
+    def test_email_change_request_formateur(self) -> bool:
+        """Test POST /api/email-change-request as formateur"""
+        print("\n🧪 Testing email change request as formateur...")
         
-        # Test 1: Admin can upload image
-        if self.admin_token:
-            headers = {"Authorization": f"Bearer {self.admin_token}"}
-            test_image = self.create_test_image()
-            files = {"file": ("test_admin.png", test_image, "image/png")}
-            
-            try:
-                response = self.session.post(f"{BASE_URL}/upload/image", headers=headers, files=files)
-                if response.status_code == 200:
-                    data = response.json()
-                    admin_filename = data.get("filename")
-                    self.log_result("Admin image upload", True, f"Uploaded as {admin_filename}")
-                    
-                    # Test serving the uploaded image
-                    if admin_filename:
-                        img_response = self.session.get(f"{BASE_URL}/images/{admin_filename}")
-                        if img_response.status_code == 200:
-                            self.log_result("Admin image serve", True, f"Image served successfully")
-                        else:
-                            self.log_result("Admin image serve", False, f"Status {img_response.status_code}")
-                        
-                        # Test deleting the image
-                        del_response = self.session.delete(f"{BASE_URL}/images/{admin_filename}", headers=headers)
-                        if del_response.status_code == 200:
-                            self.log_result("Admin image delete", True, "Image deleted successfully")
-                        else:
-                            self.log_result("Admin image delete", False, f"Status {del_response.status_code}")
-                else:
-                    self.log_result("Admin image upload", False, f"Status {response.status_code}: {response.text}")
-            except Exception as e:
-                self.log_result("Admin image upload", False, f"Exception: {str(e)}")
+        token = self.tokens.get("formateur")
+        if not token:
+            print("❌ No formateur token available")
+            return False
         
-        # Test 2: Formateur can upload image
-        if self.formateur_token:
-            headers = {"Authorization": f"Bearer {self.formateur_token}"}
-            test_image = self.create_test_image()
-            files = {"file": ("test_formateur.png", test_image, "image/png")}
-            
-            try:
-                response = self.session.post(f"{BASE_URL}/upload/image", headers=headers, files=files)
-                if response.status_code == 200:
-                    data = response.json()
-                    formateur_filename = data.get("filename")
-                    self.log_result("Formateur image upload", True, f"Uploaded as {formateur_filename}")
-                    
-                    # Clean up
-                    if formateur_filename:
-                        self.session.delete(f"{BASE_URL}/images/{formateur_filename}", headers=headers)
-                else:
-                    self.log_result("Formateur image upload", False, f"Status {response.status_code}: {response.text}")
-            except Exception as e:
-                self.log_result("Formateur image upload", False, f"Exception: {str(e)}")
+        # Use timestamp to make email unique
+        import time
+        timestamp = int(time.time())
         
-        # Test 3: Student should get 403
-        if self.student_token:
-            headers = {"Authorization": f"Bearer {self.student_token}"}
-            test_image = self.create_test_image()
-            files = {"file": ("test_student.png", test_image, "image/png")}
-            
-            try:
-                response = self.session.post(f"{BASE_URL}/upload/image", headers=headers, files=files)
-                if response.status_code == 403:
-                    self.log_result("Student image upload (403 expected)", True, "Correctly denied access")
-                else:
-                    self.log_result("Student image upload (403 expected)", False, f"Status {response.status_code} (should be 403)")
-            except Exception as e:
-                self.log_result("Student image upload (403 expected)", False, f"Exception: {str(e)}")
+        # Test valid request
+        data = {"new_email": f"test-formateur-{timestamp}@test.fr", "reason": "Test email change"}
+        response = self.make_request("POST", "/email-change-request", token, json=data)
+        
+        if response.status_code == 200:
+            print("✅ Email change request created successfully")
+            return True
+        else:
+            print(f"❌ Email change request failed: {response.status_code} - {response.text}")
+            return False
     
-    def test_course_crud_with_images(self):
-        """Test course CRUD operations with images field"""
-        print("\n=== Testing Course CRUD with Images ===")
+    def test_email_change_request_student(self) -> bool:
+        """Test POST /api/email-change-request as student"""
+        print("\n🧪 Testing email change request as student...")
         
-        if not self.admin_token:
-            self.log_result("Course CRUD test", False, "No admin token available")
-            return
+        token = self.tokens.get("student")
+        if not token:
+            print("❌ No student token available")
+            return False
         
-        headers = {"Authorization": f"Bearer {self.admin_token}"}
+        # Use timestamp to make email unique
+        import time
+        timestamp = int(time.time())
         
-        # First upload some test images
-        test_images = []
-        for i in range(2):
-            test_image = self.create_test_image()
-            files = {"file": (f"course_test_{i}.png", test_image, "image/png")}
+        # Test valid request
+        data = {"new_email": f"test-student-{timestamp}@test.fr", "reason": "Test email change for student"}
+        response = self.make_request("POST", "/email-change-request", token, json=data)
+        
+        if response.status_code == 200:
+            print("✅ Student email change request created successfully")
+            return True
+        else:
+            print(f"❌ Student email change request failed: {response.status_code} - {response.text}")
+            return False
+    
+    def test_email_change_request_admin_forbidden(self) -> bool:
+        """Test POST /api/email-change-request as admin (should fail)"""
+        print("\n🧪 Testing email change request as admin (should be forbidden)...")
+        
+        token = self.tokens.get("admin")
+        if not token:
+            print("❌ No admin token available")
+            return False
+        
+        data = {"new_email": "test-admin@test.fr", "reason": "Test"}
+        response = self.make_request("POST", "/email-change-request", token, json=data)
+        
+        if response.status_code == 400:
+            print("✅ Admin correctly forbidden from using email change request")
+            return True
+        else:
+            print(f"❌ Admin should be forbidden: {response.status_code} - {response.text}")
+            return False
+    
+    def test_duplicate_email_request(self) -> bool:
+        """Test POST /api/email-change-request with duplicate email"""
+        print("\n🧪 Testing email change request with duplicate email...")
+        
+        token = self.tokens.get("formateur")
+        if not token:
+            print("❌ No formateur token available")
+            return False
+        
+        # Try to use admin's email
+        data = {"new_email": "admin@netbfrs.fr", "reason": "Test duplicate"}
+        response = self.make_request("POST", "/email-change-request", token, json=data)
+        
+        if response.status_code == 400:
+            print("✅ Duplicate email correctly rejected")
+            return True
+        else:
+            print(f"❌ Duplicate email should be rejected: {response.status_code} - {response.text}")
+            return False
+    
+    def test_pending_request_duplicate(self) -> bool:
+        """Test POST /api/email-change-request when user already has pending request"""
+        print("\n🧪 Testing duplicate pending request...")
+        
+        token = self.tokens.get("formateur")
+        if not token:
+            print("❌ No formateur token available")
+            return False
+        
+        # Try to create another request
+        data = {"new_email": "another-test@test.fr", "reason": "Another test"}
+        response = self.make_request("POST", "/email-change-request", token, json=data)
+        
+        if response.status_code == 400:
+            print("✅ Duplicate pending request correctly rejected")
+            return True
+        else:
+            print(f"❌ Duplicate pending request should be rejected: {response.status_code} - {response.text}")
+            return False
+    
+    def test_get_email_change_requests_admin(self) -> bool:
+        """Test GET /api/email-change-requests as admin"""
+        print("\n🧪 Testing get email change requests as admin...")
+        
+        token = self.tokens.get("admin")
+        if not token:
+            print("❌ No admin token available")
+            return False
+        
+        response = self.make_request("GET", "/email-change-requests", token)
+        
+        if response.status_code == 200:
+            requests_data = response.json()
+            print(f"✅ Retrieved {len(requests_data)} email change requests")
             
-            try:
-                response = self.session.post(f"{BASE_URL}/upload/image", headers=headers, files=files)
-                if response.status_code == 200:
-                    data = response.json()
-                    test_images.append(data.get("filename"))
-            except Exception as e:
-                print(f"Failed to upload test image {i}: {e}")
+            # Store request IDs for later tests
+            self.pending_requests = [req for req in requests_data if req.get("status") == "pending"]
+            print(f"   Found {len(self.pending_requests)} pending requests")
+            return True
+        else:
+            print(f"❌ Get email change requests failed: {response.status_code} - {response.text}")
+            return False
+    
+    def test_get_email_change_requests_non_admin(self) -> bool:
+        """Test GET /api/email-change-requests as non-admin (should fail)"""
+        print("\n🧪 Testing get email change requests as non-admin (should be forbidden)...")
         
-        if len(test_images) < 2:
-            self.log_result("Course image preparation", False, "Could not upload test images")
-            return
+        token = self.tokens.get("formateur")
+        if not token:
+            print("❌ No formateur token available")
+            return False
         
-        self.log_result("Course image preparation", True, f"Uploaded {len(test_images)} test images")
+        response = self.make_request("GET", "/email-change-requests", token)
         
-        # Test 1: Create course with images
-        course_data = {
-            "title": "Test Course with Images",
-            "content": "This is a test course with images",
-            "images": test_images,
-            "objectives": ["Learn image handling", "Test course creation"],
-            "prerequisites": ["Basic knowledge"],
-            "duration_estimate": "2 hours",
-            "formation": "bts-sio-sisr",
-            "category": "admin-systeme"
-        }
+        if response.status_code == 403:
+            print("✅ Non-admin correctly forbidden from viewing email change requests")
+            return True
+        else:
+            print(f"❌ Non-admin should be forbidden: {response.status_code} - {response.text}")
+            return False
+    
+    def test_approve_email_change_request(self) -> bool:
+        """Test PUT /api/email-change-requests/{id}?action=approve"""
+        print("\n🧪 Testing approve email change request...")
         
-        try:
-            response = self.session.post(f"{BASE_URL}/courses", headers=headers, json=course_data)
-            if response.status_code == 201:
-                course = response.json()
-                course_id = course.get("id")
-                returned_images = course.get("images", [])
-                
-                if set(returned_images) == set(test_images):
-                    self.log_result("Course creation with images", True, f"Course created with {len(returned_images)} images")
-                else:
-                    self.log_result("Course creation with images", False, f"Images mismatch: sent {test_images}, got {returned_images}")
-                
-                # Test 2: Get course and verify images field
-                if course_id:
-                    get_response = self.session.get(f"{BASE_URL}/courses/{course_id}", headers=headers)
-                    if get_response.status_code == 200:
-                        retrieved_course = get_response.json()
-                        retrieved_images = retrieved_course.get("images", [])
-                        
-                        if set(retrieved_images) == set(test_images):
-                            self.log_result("Course GET with images", True, f"Retrieved course has correct images")
-                        else:
-                            self.log_result("Course GET with images", False, f"Images mismatch in GET")
-                    else:
-                        self.log_result("Course GET with images", False, f"Status {get_response.status_code}")
-                
-                # Test 3: Update course with different images
-                updated_images = [test_images[0]]  # Keep only first image
-                update_data = {
-                    "title": "Updated Test Course",
-                    "images": updated_images
-                }
-                
-                if course_id:
-                    put_response = self.session.put(f"{BASE_URL}/courses/{course_id}", headers=headers, json=update_data)
-                    if put_response.status_code == 200:
-                        # Verify update
-                        get_response = self.session.get(f"{BASE_URL}/courses/{course_id}", headers=headers)
-                        if get_response.status_code == 200:
-                            updated_course = get_response.json()
-                            final_images = updated_course.get("images", [])
-                            
-                            if final_images == updated_images:
-                                self.log_result("Course UPDATE with images", True, f"Images updated correctly")
-                            else:
-                                self.log_result("Course UPDATE with images", False, f"Images not updated correctly")
-                        else:
-                            self.log_result("Course UPDATE with images", False, f"Could not verify update")
-                    else:
-                        self.log_result("Course UPDATE with images", False, f"Status {put_response.status_code}")
-                
-                # Test 4: List courses and verify images field
-                list_response = self.session.get(f"{BASE_URL}/courses", headers=headers)
-                if list_response.status_code == 200:
-                    courses = list_response.json()
-                    test_course = next((c for c in courses if c.get("id") == course_id), None)
-                    
-                    if test_course and "images" in test_course:
-                        self.log_result("Course LIST with images", True, "Images field present in course list")
-                    else:
-                        self.log_result("Course LIST with images", False, "Images field missing in course list")
-                else:
-                    self.log_result("Course LIST with images", False, f"Status {list_response.status_code}")
-                
-                # Clean up: Delete course
-                if course_id:
-                    self.session.delete(f"{BASE_URL}/courses/{course_id}", headers=headers)
+        token = self.tokens.get("admin")
+        if not token:
+            print("❌ No admin token available")
+            return False
+        
+        if not hasattr(self, 'pending_requests') or not self.pending_requests:
+            print("❌ No pending requests available for approval")
+            return False
+        
+        # Approve the first pending request
+        request_id = self.pending_requests[0]["id"]
+        response = self.make_request("PUT", f"/email-change-requests/{request_id}?action=approve", token)
+        
+        if response.status_code == 200:
+            print("✅ Email change request approved successfully")
+            # Store approved request for cleanup
+            self.approved_request = self.pending_requests[0]
+            return True
+        else:
+            print(f"❌ Email change request approval failed: {response.status_code} - {response.text}")
+            return False
+    
+    def test_reject_email_change_request(self) -> bool:
+        """Test PUT /api/email-change-requests/{id}?action=reject"""
+        print("\n🧪 Testing reject email change request...")
+        
+        token = self.tokens.get("admin")
+        if not token:
+            print("❌ No admin token available")
+            return False
+        
+        # First create a new request to reject
+        student2_token = self.tokens.get("student2")
+        if student2_token:
+            data = {"new_email": "reject-test@test.fr", "reason": "Test rejection"}
+            create_response = self.make_request("POST", "/email-change-request", student2_token, json=data)
+            
+            if create_response.status_code != 200:
+                print(f"❌ Could not create request for rejection test: {create_response.status_code}")
+                return False
+        
+        # Get updated requests list
+        response = self.make_request("GET", "/email-change-requests", token)
+        if response.status_code != 200:
+            print("❌ Could not get updated requests list")
+            return False
+        
+        requests_data = response.json()
+        pending_requests = [req for req in requests_data if req.get("status") == "pending"]
+        
+        if not pending_requests:
+            print("❌ No pending requests available for rejection")
+            return False
+        
+        # Reject the first pending request
+        request_id = pending_requests[0]["id"]
+        response = self.make_request("PUT", f"/email-change-requests/{request_id}?action=reject", token)
+        
+        if response.status_code == 200:
+            print("✅ Email change request rejected successfully")
+            return True
+        else:
+            print(f"❌ Email change request rejection failed: {response.status_code} - {response.text}")
+            return False
+    
+    def test_get_my_email_change_request(self) -> bool:
+        """Test GET /api/my-email-change-request"""
+        print("\n🧪 Testing get my email change request...")
+        
+        # Use student2 who should not have a pending request yet
+        token = self.tokens.get("student2")
+        if not token:
+            print("❌ No student2 token available")
+            return False
+        
+        # Use timestamp to make email unique
+        import time
+        timestamp = int(time.time())
+        
+        # Create a request
+        data = {"new_email": f"my-request-test-{timestamp}@test.fr", "reason": "Test my request"}
+        create_response = self.make_request("POST", "/email-change-request", token, json=data)
+        
+        if create_response.status_code != 200:
+            print(f"❌ Could not create request for my-request test: {create_response.status_code}")
+            return False
+        
+        # Now get my request
+        response = self.make_request("GET", "/my-email-change-request", token)
+        
+        if response.status_code == 200:
+            request_data = response.json()
+            if request_data and request_data.get("new_email") == f"my-request-test-{timestamp}@test.fr":
+                print("✅ My email change request retrieved successfully")
+                return True
             else:
-                self.log_result("Course creation with images", False, f"Status {response.status_code}: {response.text}")
-        except Exception as e:
-            self.log_result("Course creation with images", False, f"Exception: {str(e)}")
-        
-        # Clean up: Delete test images
-        for img_filename in test_images:
-            try:
-                self.session.delete(f"{BASE_URL}/images/{img_filename}", headers=headers)
-            except:
-                pass
+                print("❌ My email change request data incorrect")
+                return False
+        else:
+            print(f"❌ Get my email change request failed: {response.status_code} - {response.text}")
+            return False
     
-    def test_llm_settings_endpoint(self):
-        """Test LLM settings endpoint"""
-        print("\n=== Testing LLM Settings Endpoint ===")
+    def test_admin_direct_email_change(self) -> bool:
+        """Test PUT /api/users/{user_id} with email field"""
+        print("\n🧪 Testing admin direct email change...")
         
-        if not self.admin_token:
-            self.log_result("LLM settings test", False, "No admin token available")
+        token = self.tokens.get("admin")
+        if not token:
+            print("❌ No admin token available")
+            return False
+        
+        # First get users list to find a user to update
+        response = self.make_request("GET", "/users", token)
+        if response.status_code != 200:
+            print(f"❌ Could not get users list: {response.status_code}")
+            return False
+        
+        users = response.json()
+        # Find a student user (not admin)
+        student_user = None
+        for user in users:
+            if user.get("role") == "etudiant" and user.get("email") != "alice.martin@netbfrs.fr":
+                student_user = user
+                break
+        
+        if not student_user:
+            print("❌ No suitable student user found for testing")
+            return False
+        
+        # Use timestamp to make email unique
+        import time
+        timestamp = int(time.time())
+        new_email = f"admin-direct-{timestamp}@test.fr"
+        
+        # Test direct email change
+        data = {"email": new_email}
+        response = self.make_request("PUT", f"/users/{student_user['id']}", token, json=data)
+        
+        if response.status_code == 200:
+            print("✅ Admin direct email change successful")
+            # Store for cleanup
+            self.direct_change_user = {"id": student_user["id"], "original_email": student_user["email"], "new_email": new_email}
+            return True
+        else:
+            print(f"❌ Admin direct email change failed: {response.status_code} - {response.text}")
+            return False
+    
+    def test_admin_direct_email_duplicate(self) -> bool:
+        """Test PUT /api/users/{user_id} with duplicate email"""
+        print("\n🧪 Testing admin direct email change with duplicate...")
+        
+        token = self.tokens.get("admin")
+        if not token:
+            print("❌ No admin token available")
+            return False
+        
+        # Get users list to find a user to update
+        response = self.make_request("GET", "/users", token)
+        if response.status_code != 200:
+            print(f"❌ Could not get users list: {response.status_code}")
+            return False
+        
+        users = response.json()
+        # Find a student user
+        student_user = None
+        for user in users:
+            if user.get("role") == "etudiant":
+                student_user = user
+                break
+        
+        if not student_user:
+            print("❌ No suitable student user found for testing")
+            return False
+        
+        # Try to set email to admin's email (should fail)
+        data = {"email": "admin@netbfrs.fr"}
+        response = self.make_request("PUT", f"/users/{student_user['id']}", token, json=data)
+        
+        if response.status_code == 400:
+            print("✅ Admin direct email change with duplicate correctly rejected")
+            return True
+        else:
+            print(f"❌ Admin direct email change with duplicate should be rejected: {response.status_code} - {response.text}")
+            return False
+    
+    def cleanup_existing_requests(self):
+        """Clean up any existing pending requests for test users"""
+        print("\n🧹 Cleaning up existing pending requests...")
+        
+        token = self.tokens.get("admin")
+        if not token:
+            print("❌ No admin token for cleanup")
             return
         
-        headers = {"Authorization": f"Bearer {self.admin_token}"}
+        # Get all pending requests
+        response = self.make_request("GET", "/email-change-requests", token)
+        if response.status_code != 200:
+            print("❌ Could not get email change requests for cleanup")
+            return
         
-        # Test 1: GET settings
-        try:
-            response = self.session.get(f"{BASE_URL}/settings", headers=headers)
+        requests_data = response.json()
+        pending_requests = [req for req in requests_data if req.get("status") == "pending"]
+        
+        # Reject all pending requests to clean up
+        for req in pending_requests:
+            reject_response = self.make_request("PUT", f"/email-change-requests/{req['id']}?action=reject", token)
+            if reject_response.status_code == 200:
+                print(f"✅ Cleaned up pending request for {req['user_email']}")
+            else:
+                print(f"⚠️  Failed to clean up request for {req['user_email']}")
+        
+        print("✅ Existing requests cleanup completed")
+    
+    def cleanup_test_data(self):
+        print("\n🧹 Cleaning up test data...")
+        
+        token = self.tokens.get("admin")
+        if not token:
+            print("❌ No admin token for cleanup")
+            return
+        
+        # If we approved a request, restore the original email
+        if hasattr(self, 'approved_request'):
+            original_email = self.approved_request.get("user_email")
+            user_id = self.approved_request.get("user_id")
+            
+            if original_email and user_id:
+                # Restore original email
+                data = {"email": original_email}
+                response = self.make_request("PUT", f"/users/{user_id}", token, json=data)
+                if response.status_code == 200:
+                    print(f"✅ Restored {user_id} to {original_email}")
+                else:
+                    print(f"⚠️  Failed to restore {user_id} to {original_email}")
+        
+        # If we did a direct email change, restore it
+        if hasattr(self, 'direct_change_user'):
+            user_info = self.direct_change_user
+            data = {"email": user_info["original_email"]}
+            response = self.make_request("PUT", f"/users/{user_info['id']}", token, json=data)
             if response.status_code == 200:
-                settings = response.json()
-                
-                # Check required fields
-                required_fields = ["llm_provider", "llm_active"]
-                missing_fields = [f for f in required_fields if f not in settings]
-                
-                if not missing_fields:
-                    self.log_result("GET settings structure", True, f"All required fields present")
-                    
-                    # Check if .env EMERGENT_LLM_KEY is detected
-                    llm_provider = settings.get("llm_provider")
-                    llm_active = settings.get("llm_active")
-                    
-                    if llm_provider and llm_active:
-                        self.log_result("GET settings LLM detection", True, f"Provider: {llm_provider}, Active: {llm_active}")
-                    else:
-                        self.log_result("GET settings LLM detection", False, f"Provider: {llm_provider}, Active: {llm_active}")
-                else:
-                    self.log_result("GET settings structure", False, f"Missing fields: {missing_fields}")
+                print(f"✅ Restored direct change user to {user_info['original_email']}")
             else:
-                self.log_result("GET settings", False, f"Status {response.status_code}: {response.text}")
-        except Exception as e:
-            self.log_result("GET settings", False, f"Exception: {str(e)}")
+                print(f"⚠️  Failed to restore direct change user to {user_info['original_email']}")
         
-        # Test 2: PUT settings with new LLM key
-        test_key = "sk-emergent-test123456789"
-        try:
-            put_data = {"llm_key": test_key}
-            response = self.session.put(f"{BASE_URL}/settings", headers=headers, json=put_data)
-            
-            if response.status_code == 200:
-                result = response.json()
-                
-                if "llm_provider" in result and "llm_active" in result:
-                    self.log_result("PUT settings", True, f"Settings updated successfully")
-                    
-                    # Verify the change by getting settings again
-                    get_response = self.session.get(f"{BASE_URL}/settings", headers=headers)
-                    if get_response.status_code == 200:
-                        updated_settings = get_response.json()
-                        
-                        if updated_settings.get("llm_key_set"):
-                            self.log_result("PUT settings verification", True, "LLM key was set")
-                        else:
-                            self.log_result("PUT settings verification", False, "LLM key was not set")
-                    else:
-                        self.log_result("PUT settings verification", False, f"Could not verify update")
-                else:
-                    self.log_result("PUT settings", False, f"Missing fields in response")
-            else:
-                self.log_result("PUT settings", False, f"Status {response.status_code}: {response.text}")
-        except Exception as e:
-            self.log_result("PUT settings", False, f"Exception: {str(e)}")
-        
-        # Test 3: Student should get 403 for settings
-        if self.student_token:
-            student_headers = {"Authorization": f"Bearer {self.student_token}"}
-            
-            try:
-                response = self.session.get(f"{BASE_URL}/settings", headers=student_headers)
-                if response.status_code == 403:
-                    self.log_result("Student settings access (403 expected)", True, "Correctly denied access")
-                else:
-                    self.log_result("Student settings access (403 expected)", False, f"Status {response.status_code} (should be 403)")
-            except Exception as e:
-                self.log_result("Student settings access (403 expected)", False, f"Exception: {str(e)}")
+        print("✅ Cleanup completed")
     
     def run_all_tests(self):
-        """Run all tests"""
-        print("🚀 Starting AI2Lean Backend API Tests")
-        print(f"Base URL: {BASE_URL}")
+        """Run all email change tests"""
+        print("🚀 Starting AI2Lean Email Change Features Test Suite")
+        print("=" * 60)
         
         # Login all users
-        self.admin_token = self.login(ADMIN_CREDS, "Admin")
-        self.formateur_token = self.login(FORMATEUR_CREDS, "Formateur")
-        self.student_token = self.login(STUDENT_CREDS, "Student")
+        print("\n📝 Logging in test users...")
+        admin_token = self.login(ADMIN_CREDS, "admin")
+        formateur_token = self.login(FORMATEUR_CREDS, "formateur")
+        student_token = self.login(STUDENT_CREDS, "student")
+        student2_token = self.login(STUDENT2_CREDS, "student2")
         
-        if not any([self.admin_token, self.formateur_token, self.student_token]):
-            print("❌ CRITICAL: No successful logins - cannot proceed with tests")
-            return
+        if not all([admin_token, formateur_token, student_token, student2_token]):
+            print(f"❌ Failed to login all required users - admin: {bool(admin_token)}, formateur: {bool(formateur_token)}, student: {bool(student_token)}, student2: {bool(student2_token)}")
+            return False
+        
+        # Clean up any existing pending requests
+        self.cleanup_existing_requests()
         
         # Run tests
-        self.test_image_upload_endpoint()
-        self.test_course_crud_with_images()
-        self.test_llm_settings_endpoint()
+        tests = [
+            ("Email change request - Formateur", self.test_email_change_request_formateur),
+            ("Email change request - Student", self.test_email_change_request_student),
+            ("Email change request - Admin forbidden", self.test_email_change_request_admin_forbidden),
+            ("Duplicate email request", self.test_duplicate_email_request),
+            ("Pending request duplicate", self.test_pending_request_duplicate),
+            ("Get email change requests - Admin", self.test_get_email_change_requests_admin),
+            ("Get email change requests - Non-admin forbidden", self.test_get_email_change_requests_non_admin),
+            ("Approve email change request", self.test_approve_email_change_request),
+            ("Reject email change request", self.test_reject_email_change_request),
+            ("Get my email change request", self.test_get_my_email_change_request),
+            ("Admin direct email change", self.test_admin_direct_email_change),
+            ("Admin direct email duplicate", self.test_admin_direct_email_duplicate),
+        ]
+        
+        passed = 0
+        total = len(tests)
+        
+        for test_name, test_func in tests:
+            try:
+                result = test_func()
+                if result:
+                    passed += 1
+                self.test_results.append((test_name, result))
+            except Exception as e:
+                print(f"❌ {test_name} - Exception: {str(e)}")
+                self.test_results.append((test_name, False))
+        
+        # Cleanup
+        self.cleanup_test_data()
         
         # Summary
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("📊 TEST SUMMARY")
-        print("="*60)
+        print("=" * 60)
         
-        passed = sum(1 for result in self.test_results if "✅ PASS" in result)
-        failed = sum(1 for result in self.test_results if "❌ FAIL" in result)
+        for test_name, result in self.test_results:
+            status = "✅ PASS" if result else "❌ FAIL"
+            print(f"{status} - {test_name}")
         
-        for result in self.test_results:
-            print(result)
+        print(f"\nTotal: {passed}/{total} tests passed")
         
-        print(f"\n📈 Results: {passed} passed, {failed} failed")
-        
-        if failed == 0:
+        if passed == total:
             print("🎉 ALL TESTS PASSED!")
+            return True
         else:
-            print(f"⚠️  {failed} tests failed - check details above")
+            print(f"⚠️  {total - passed} tests failed")
+            return False
 
 if __name__ == "__main__":
-    tester = APITester()
-    tester.run_all_tests()
+    test_session = TestSession()
+    success = test_session.run_all_tests()
+    sys.exit(0 if success else 1)

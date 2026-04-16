@@ -36,6 +36,7 @@ export const Sidebar = ({ children }) => {
   const navItems = {
     admin: [
       { to: '/dashboard', icon: LayoutDashboard, label: 'Tableau de bord' },
+      { to: '/monitoring', icon: Activity, label: 'Monitoring' },
       { to: '/users', icon: Users, label: 'Utilisateurs' },
       { to: '/exercises', icon: BookOpen, label: 'Exercices' },
       { to: '/courses', icon: Video, label: 'Cours' },
@@ -45,7 +46,6 @@ export const Sidebar = ({ children }) => {
       { to: '/submissions', icon: ClipboardList, label: 'Soumissions' },
       { to: '/settings', icon: Settings, label: 'Parametres' },
       { to: '/login-history', icon: LogIn, label: 'Historique connexions' },
-      { to: '/monitoring', icon: Activity, label: 'Monitoring' },
     ],
     formateur: [
       { to: '/dashboard', icon: LayoutDashboard, label: 'Tableau de bord' },

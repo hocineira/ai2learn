@@ -72,7 +72,7 @@ function App() {
           <ThemedToaster />
           <Routes>
             <Route path="/login" element={<AuthGuard><LoginPage /></AuthGuard>} />
-            <Route path="/welcome" element={<LandingPage />} />
+            {/* <Route path="/welcome" element={<LandingPage />} /> */}
             <Route path="/dashboard" element={<ProtectedRoute><DashboardRouter /></ProtectedRoute>} />
             <Route path="/exercises" element={<ProtectedRoute><ExercisesPage /></ProtectedRoute>} />
             <Route path="/exercises/create" element={<ProtectedRoute roles={['admin', 'formateur']}><ExerciseCreate /></ProtectedRoute>} />
@@ -92,7 +92,7 @@ function App() {
             <Route path="/login-history" element={<ProtectedRoute roles={['admin', 'formateur']}><LoginHistoryPage /></ProtectedRoute>} />
             <Route path="/monitoring" element={<ProtectedRoute roles={['admin']}><MonitoringPage /></ProtectedRoute>} />
             <Route path="/stats" element={<ProtectedRoute roles={['admin']}><AdminDashboard /></ProtectedRoute>} />
-            <Route path="*" element={<Navigate to="/welcome" replace />} />
+            <Route path="*" element={<Navigate to="/login" replace />} />
           </Routes>
         </AuthProvider>
       </BrowserRouter>

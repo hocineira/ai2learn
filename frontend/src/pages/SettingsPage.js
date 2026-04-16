@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Settings, Key, Save, Loader2, CheckCircle2, XCircle, Eye, EyeOff, User, Lock, KeyRound, Send } from 'lucide-react';
+import { Settings, Key, Save, Loader2, CheckCircle2, XCircle, Eye, EyeOff, User, Lock, KeyRound, Send, Mail, Clock } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function SettingsPage() {
@@ -28,6 +28,13 @@ export default function SettingsPage() {
   const [requestingPwd, setRequestingPwd] = useState(false);
   const [pwdRequested, setPwdRequested] = useState(false);
 
+  // Email change request (etudiant + formateur)
+  const [newEmail, setNewEmail] = useState('');
+  const [emailReason, setEmailReason] = useState('');
+  const [requestingEmail, setRequestingEmail] = useState(false);
+  const [emailRequested, setEmailRequested] = useState(false);
+  const [pendingEmailReq, setPendingEmailReq] = useState(null);
+
   const [llmProvider, setLlmProvider] = useState('');
   const [llmActive, setLlmActive] = useState(false);
 
@@ -44,6 +51,21 @@ export default function SettingsPage() {
     };
     if (user?.role === 'admin') fetchSettings();
     else setLoading(false);
+  }, [API, getAuthHeaders, user]);
+
+  // Fetch pending email change request
+  useEffect(() => {
+    const fetchEmailReq = async () => {
+      if (user?.role === 'admin') return;
+      try {
+        const res = await axios.get(`${API}/my-email-change-request`, { headers: getAuthHeaders() });
+        if (res.data) {
+          setPendingEmailReq(res.data);
+          setEmailRequested(true);
+        }
+      } catch {}
+    };
+    fetchEmailReq();
   }, [API, getAuthHeaders, user]);
 
   const handleSaveKey = async () => {
@@ -108,6 +130,25 @@ export default function SettingsPage() {
     setRequestingPwd(false);
   };
 
+  const handleRequestEmailChange = async () => {
+    if (!newEmail.trim() || !newEmail.includes('@')) {
+      toast.error('Veuillez entrer un email valide');
+      return;
+    }
+    setRequestingEmail(true);
+    try {
+      await axios.post(`${API}/email-change-request`, { new_email: newEmail, reason: emailReason || null }, { headers: getAuthHeaders() });
+      toast.success('Demande de changement d\'email envoyee !');
+      setEmailRequested(true);
+      setPendingEmailReq({ new_email: newEmail, status: 'pending' });
+      setNewEmail('');
+      setEmailReason('');
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Erreur lors de la demande');
+    }
+    setRequestingEmail(false);
+  };
+
   if (loading) return <div className="th-text-muted text-center py-20">Chargement...</div>;
 
   return (
@@ -152,6 +193,74 @@ export default function SettingsPage() {
           </Button>
         </CardContent>
       </Card>
+
+      {/* Email Change Request (Etudiant + Formateur) */}
+      {(user?.role === 'etudiant' || user?.role === 'formateur') && (
+        <Card className="bg-white dark:bg-zinc-900/50 border-gray-200 dark:border-zinc-800 shadow-sm dark:shadow-none">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm flex items-center gap-2 text-blue-600 dark:text-blue-400" style={{ fontFamily: 'Space Grotesk' }}>
+              <Mail className="w-4 h-4" /> Demande de changement d'email
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm th-text-secondary">
+              Pour changer votre adresse email, envoyez une demande a l'administrateur. 
+              Il validera et appliquera le changement.
+            </p>
+            
+            {emailRequested && pendingEmailReq ? (
+              <div className="flex items-center gap-2 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                <Clock className="w-5 h-5 text-blue-500 flex-shrink-0" />
+                <div>
+                  <p className="text-sm text-blue-700 dark:text-blue-400 font-medium">
+                    Demande en cours de traitement
+                  </p>
+                  <p className="text-xs text-blue-600 dark:text-blue-500 mt-1">
+                    Nouvel email demande : <strong>{pendingEmailReq.new_email}</strong>
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div>
+                  <label className="text-xs font-mono th-text-faint uppercase tracking-wider mb-2 block">
+                    Nouvel email souhaite *
+                  </label>
+                  <Input
+                    type="email"
+                    value={newEmail}
+                    onChange={(e) => setNewEmail(e.target.value)}
+                    placeholder="nouveau@email.com"
+                    className="bg-gray-50 dark:bg-zinc-900 border-gray-300 dark:border-zinc-700 text-gray-900 dark:text-zinc-100"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-mono th-text-faint uppercase tracking-wider mb-2 block">
+                    Raison (optionnel)
+                  </label>
+                  <Input
+                    value={emailReason}
+                    onChange={(e) => setEmailReason(e.target.value)}
+                    placeholder="Ex: Changement d'adresse professionnelle..."
+                    className="bg-gray-50 dark:bg-zinc-900 border-gray-300 dark:border-zinc-700 text-gray-900 dark:text-zinc-100"
+                  />
+                </div>
+                <Button
+                  onClick={handleRequestEmailChange}
+                  disabled={requestingEmail || !newEmail.trim()}
+                  className="bg-blue-600 hover:bg-blue-500 text-white"
+                >
+                  {requestingEmail ? (
+                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Envoi en cours...</>
+                  ) : (
+                    <><Send className="w-4 h-4 mr-2" /> Envoyer la demande</>
+                  )}
+                </Button>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Password Change Request (Students) */}
       {user?.role === 'etudiant' && (

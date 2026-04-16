@@ -228,6 +228,7 @@ class UserUpdate(BaseModel):
     role: Optional[str] = None
     formation: Optional[str] = None
     new_password: Optional[str] = None
+    email: Optional[str] = None  # Admin can change user email
 
 class ExerciseQuestion(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -462,6 +463,14 @@ async def update_user(user_id: str, data: UserUpdate, current_user: dict = Depen
         update["formation"] = data.formation
     if data.new_password and data.new_password.strip():
         update["password"] = hash_password(data.new_password.strip())
+    if data.email and data.email.strip():
+        new_email = data.email.strip().lower()
+        # Check if email is already taken by another user
+        existing = await db.users.find_one({"email": new_email, "id": {"$ne": user_id}}, {"_id": 0})
+        if existing:
+            raise HTTPException(status_code=400, detail="Cet email est deja utilise par un autre utilisateur")
+        update["email"] = new_email
+        update["username"] = new_email  # Keep username in sync
     if not update:
         raise HTTPException(status_code=400, detail="Rien a mettre a jour")
     result = await db.users.update_one({"id": user_id}, {"$set": update})
@@ -1402,6 +1411,139 @@ async def handle_password_request(request_id: str, current_user: dict = Depends(
     
     return {"message": "Demande traitee"}
 
+
+# ─── Email Change Request ───
+
+class EmailChangeRequest(BaseModel):
+    new_email: str
+    reason: Optional[str] = None
+
+@api_router.post("/email-change-request")
+async def request_email_change(data: EmailChangeRequest, current_user: dict = Depends(auth_dependency)):
+    """User/Formateur requests an email change - notifies all admins"""
+    if current_user["role"] == "admin":
+        raise HTTPException(status_code=400, detail="Les admins peuvent changer leur email directement")
+    
+    new_email = data.new_email.strip().lower()
+    if not new_email or "@" not in new_email:
+        raise HTTPException(status_code=400, detail="Email invalide")
+    
+    # Check if email is already taken
+    existing = await db.users.find_one({"email": new_email}, {"_id": 0})
+    if existing:
+        raise HTTPException(status_code=400, detail="Cet email est deja utilise")
+    
+    # Check if there's already a pending request for this user
+    existing_req = await db.email_change_requests.find_one({
+        "user_id": current_user["id"],
+        "status": "pending"
+    }, {"_id": 0})
+    if existing_req:
+        raise HTTPException(status_code=400, detail="Vous avez deja une demande en cours")
+    
+    request_id = str(uuid.uuid4())
+    request_doc = {
+        "id": request_id,
+        "user_id": current_user["id"],
+        "user_name": current_user["full_name"],
+        "user_email": current_user.get("email", current_user.get("username", "")),
+        "new_email": new_email,
+        "reason": data.reason or "Changement d'email demande",
+        "status": "pending",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.email_change_requests.insert_one(request_doc)
+    
+    # Notify all admins
+    admins = await db.users.find({"role": "admin"}, {"_id": 0, "id": 1}).to_list(50)
+    for admin in admins:
+        await create_notification(
+            user_id=admin["id"],
+            title="Demande de changement d'email",
+            message=f"{current_user['full_name']} ({current_user.get('email', '')}) demande a changer son email vers {new_email}. Raison: {data.reason or 'Non precisee'}",
+            notif_type="email_change_request",
+            link="/users"
+        )
+    
+    return {"message": "Demande envoyee. L'administrateur sera notifie."}
+
+@api_router.get("/email-change-requests")
+async def get_email_change_requests(current_user: dict = Depends(auth_dependency)):
+    """Admin: get all email change requests"""
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin uniquement")
+    requests = await db.email_change_requests.find({}, {"_id": 0}).sort("created_at", -1).to_list(100)
+    return requests
+
+@api_router.put("/email-change-requests/{request_id}")
+async def handle_email_change_request(request_id: str, action: str = "approve", current_user: dict = Depends(auth_dependency)):
+    """Admin: approve or reject an email change request"""
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin uniquement")
+    
+    req = await db.email_change_requests.find_one({"id": request_id}, {"_id": 0})
+    if not req:
+        raise HTTPException(status_code=404, detail="Demande non trouvee")
+    
+    if req["status"] != "pending":
+        raise HTTPException(status_code=400, detail="Cette demande a deja ete traitee")
+    
+    if action == "approve":
+        new_email = req["new_email"]
+        # Verify email isn't taken
+        existing = await db.users.find_one({"email": new_email, "id": {"$ne": req["user_id"]}}, {"_id": 0})
+        if existing:
+            raise HTTPException(status_code=400, detail="Cet email est deja utilise par un autre utilisateur")
+        
+        # Update user email
+        await db.users.update_one(
+            {"id": req["user_id"]},
+            {"$set": {"email": new_email, "username": new_email}}
+        )
+        
+        # Mark request as approved
+        await db.email_change_requests.update_one(
+            {"id": request_id},
+            {"$set": {"status": "approved", "handled_by": current_user["id"], "handled_at": datetime.now(timezone.utc).isoformat()}}
+        )
+        
+        # Notify user
+        await create_notification(
+            user_id=req["user_id"],
+            title="Email modifie",
+            message=f"Votre email a ete change de {req['user_email']} vers {new_email}. Utilisez votre nouvel email pour vous connecter.",
+            notif_type="info",
+        )
+        
+        return {"message": f"Email change de {req['user_email']} vers {new_email}"}
+    
+    elif action == "reject":
+        await db.email_change_requests.update_one(
+            {"id": request_id},
+            {"$set": {"status": "rejected", "handled_by": current_user["id"], "handled_at": datetime.now(timezone.utc).isoformat()}}
+        )
+        
+        # Notify user
+        await create_notification(
+            user_id=req["user_id"],
+            title="Demande d'email refusee",
+            message=f"Votre demande de changement d'email vers {req['new_email']} a ete refusee par l'administrateur.",
+            notif_type="warning",
+        )
+        
+        return {"message": "Demande refusee"}
+    
+    else:
+        raise HTTPException(status_code=400, detail="Action invalide. Utilisez 'approve' ou 'reject'")
+
+@api_router.get("/my-email-change-request")
+async def get_my_email_change_request(current_user: dict = Depends(auth_dependency)):
+    """Get the current user's pending email change request"""
+    req = await db.email_change_requests.find_one({
+        "user_id": current_user["id"],
+        "status": "pending"
+    }, {"_id": 0})
+    return req
 
 
 # ─── Login History ───

@@ -299,8 +299,64 @@ metadata:
   test_sequence: 8
   run_ui: true
 
+  - task: "Email change request endpoints"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "Added POST /api/email-change-request (etudiant/formateur), GET /api/email-change-requests (admin), PUT /api/email-change-requests/{id}?action=approve|reject (admin), GET /api/my-email-change-request (current user). Also updated PUT /api/users/{user_id} to support email field changes."
+        - working: true
+          agent: "testing"
+          comment: "✅ COMPREHENSIVE EMAIL CHANGE TESTING COMPLETED - ALL TESTS PASSED. Tested all 6 email change endpoints: (1) POST /api/email-change-request: ✅ Formateur and student can create requests with unique emails, ✅ Admin correctly forbidden (400), ✅ Duplicate emails rejected (400), ✅ Pending request duplicates rejected (400). (2) GET /api/email-change-requests: ✅ Admin can view all requests, ✅ Non-admin correctly forbidden (403). (3) PUT /api/email-change-requests/{id}?action=approve: ✅ Admin can approve requests, user email updated in DB. (4) PUT /api/email-change-requests/{id}?action=reject: ✅ Admin can reject requests. (5) GET /api/my-email-change-request: ✅ Users can view their own pending requests. (6) PUT /api/users/{user_id} with email: ✅ Admin can directly change user emails, ✅ Duplicate emails correctly rejected (400). All authentication, authorization, validation, and data persistence working correctly. Email change workflow fully functional."
+
+  - task: "Admin email change via users panel"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "Updated UserUpdate model to include email field. PUT /api/users/{user_id} now supports changing email with duplicate checking."
+        - working: true
+          agent: "testing"
+          comment: "✅ ADMIN DIRECT EMAIL CHANGE TESTING COMPLETED - ALL TESTS PASSED. Tested PUT /api/users/{user_id} endpoint with email field: ✅ Admin can directly change user emails via users panel, ✅ Email updates are persisted in database, ✅ Duplicate email validation working correctly (400 error), ✅ Only admin role can perform direct email changes. UserUpdate model correctly includes email field. Direct email change functionality fully working."
+
+  - task: "Disable /welcome page"
+    implemented: true
+    working: "NA"
+    file: "frontend/src/App.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "Commented out /welcome route in App.js. Catch-all route now redirects to /login instead of /welcome. LandingPage.js file kept intact."
+
+  - task: "Monitoring first in admin sidebar"
+    implemented: true
+    working: "NA"
+    file: "frontend/src/components/Sidebar.js"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "Reordered admin nav items in Sidebar.js to place Monitoring right after Tableau de bord."
+
 test_plan:
-  current_focus: []
+  current_focus:
+    - "Email change request endpoints"
+    - "Admin email change via users panel"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
@@ -320,3 +376,5 @@ agent_communication:
       message: "✅ IMAGE UPLOAD FEATURE UI TESTING COMPLETED - ALL TESTS PASSED. Comprehensive testing of the newly added image upload feature for courses: (1) COURSE CREATE PAGE: 'Images d'illustration' section present with correct upload zone text 'Cliquez pour ajouter des images d'illustration'. Multiple image upload supported. Images appear in grid with delete button overlay. Successfully created course with test image. (2) COURSE VIEW PAGE: 'Illustrations' section displays when course has images. Images shown in responsive grid. Lightbox functionality working - clicking image opens full-size view with dark backdrop and close button. Lightbox closes correctly. (3) SETTINGS PAGE: LLM key section visible for admin. 'Emergent/OpenAI' provider badge displayed. Info text correctly mentions 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite'. (4) STUDENT ROLE: Students can view courses and images but 'Creer un cours' button NOT visible (correct). Students can view course details and see 'Illustrations' section. ALL 6 TESTS PASSED. NO CRITICAL ISSUES FOUND. Image upload feature fully functional across all user roles."
     - agent: "testing"
       message: "✅ COVER IMAGE FEATURE COMPREHENSIVE TESTING COMPLETED - ALL TESTS PASSED. Tested the new COVER IMAGE feature for courses: (1) COURSE CREATE PAGE: 'Image de couverture' section present with 'Recommande' badge. Upload zone displays 'Cliquez pour ajouter une image de couverture' text. Cover image upload working - successfully uploaded test PNG image (800x450 cyan with white text). Preview appears after upload with 'Image de couverture' badge and delete button. (2) COURSES LIST: Cover image displays as banner at top of course card (height 160px) with gradient overlay (from-black/60 via-black/10 to-transparent). Course title overlaid on image in white text with drop shadow. Visual quality excellent - test image clearly visible with professional appearance. Fallback to BookOpen icon for courses without cover. (3) COURSE VIEW PAGE: Cover image used as hero header background with opacity-30 and gradient overlay (from-zinc-900 via-zinc-900/80 to-zinc-900/40). Title displays in white (text-white) over cover image. Hero section looks polished and professional. (4) BACKEND: cover_image field properly saved in course document (CourseCreate/CourseUpdate models). Image served via GET /api/images/{filename}. Image cleanup on course deletion. ALL 8 TESTS PASSED. NO CRITICAL ISSUES FOUND. Cover image feature fully functional and production-ready."
+    - agent: "testing"
+      message: "✅ EMAIL CHANGE FEATURES COMPREHENSIVE TESTING COMPLETED - ALL 12 TESTS PASSED. Tested all new email change functionality: (1) POST /api/email-change-request: ✅ Formateur and student can create requests, ✅ Admin correctly forbidden (400), ✅ Duplicate emails rejected (400), ✅ Pending request duplicates rejected (400). (2) GET /api/email-change-requests: ✅ Admin can view all requests, ✅ Non-admin correctly forbidden (403). (3) PUT /api/email-change-requests/{id}?action=approve: ✅ Admin can approve requests, user email updated in DB. (4) PUT /api/email-change-requests/{id}?action=reject: ✅ Admin can reject requests. (5) GET /api/my-email-change-request: ✅ Users can view their own pending requests. (6) PUT /api/users/{user_id} with email: ✅ Admin can directly change user emails, ✅ Duplicate emails correctly rejected (400). All authentication, authorization, validation, and data persistence working correctly. Email change workflow fully functional and production-ready. NO CRITICAL ISSUES FOUND."
