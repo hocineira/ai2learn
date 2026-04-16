@@ -295,8 +295,8 @@ frontend:
 
 metadata:
   created_by: "main_agent"
-  version: "2.5"
-  test_sequence: 8
+  version: "2.6"
+  test_sequence: 9
   run_ui: true
 
   - task: "Email change request endpoints"
@@ -331,32 +331,60 @@ metadata:
 
   - task: "Disable /welcome page"
     implemented: true
-    working: "NA"
+    working: true
     file: "frontend/src/App.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
         - working: "NA"
           agent: "main"
           comment: "Commented out /welcome route in App.js. Catch-all route now redirects to /login instead of /welcome. LandingPage.js file kept intact."
+        - working: true
+          agent: "testing"
+          comment: "✅ VERIFIED: /welcome page disabled correctly. Tested: (1) Navigate to /welcome → redirects to /login ✅. (2) Navigate to random non-existent page → redirects to /login ✅. (3) Login page loads correctly with email and password fields ✅. All redirects working as expected."
 
   - task: "Monitoring first in admin sidebar"
     implemented: true
-    working: "NA"
+    working: true
     file: "frontend/src/components/Sidebar.js"
     stuck_count: 0
     priority: "medium"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
         - working: "NA"
           agent: "main"
           comment: "Reordered admin nav items in Sidebar.js to place Monitoring right after Tableau de bord."
+        - working: true
+          agent: "testing"
+          comment: "✅ VERIFIED: Monitoring correctly positioned as SECOND item in admin sidebar. Tested: (1) Login as admin successful ✅. (2) Sidebar navigation order verified: 'Tableau de bord' (1st), 'Monitoring' (2nd) ✅. (3) Clicked Monitoring link → page loads correctly with server stats, active sessions, MongoDB collections ✅. Monitoring page fully functional."
+
+  - task: "Email change request UI - SettingsPage"
+    implemented: true
+    working: true
+    file: "frontend/src/pages/SettingsPage.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "testing"
+          comment: "✅ VERIFIED: Email change request section working correctly on Settings page. FORMATEUR TEST: (1) Section 'Demande de changement d'email' visible ✅. (2) Formateur has pending email change request, so form is hidden and replaced with 'Demande en cours de traitement' status message showing new email 'test-formateur-1778366173@test.fr' - this is CORRECT BEHAVIOR per code logic ✅. STUDENT TEST: (1) Section 'Demande de changement d'email' visible ✅. (2) 'Nouvel email souhaite' input field present with placeholder 'nouveau@email.com' ✅. (3) 'Raison (optionnel)' input field present with placeholder 'Ex: Changement d'adresse professionnelle...' ✅. (4) 'Envoyer la demande' button present ✅. (5) 'Demande de changement de mot de passe' section also visible for student ✅. All UI elements working as expected for both roles."
+
+  - task: "Email change UI - Admin UsersPage"
+    implemented: true
+    working: true
+    file: "frontend/src/pages/UsersPage.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: true
+          agent: "testing"
+          comment: "✅ VERIFIED: Admin email change functionality fully working on Users page. Tested: (1) Login as admin successful ✅. (2) Users page loaded with 12 user rows ✅. (3) Each non-admin user row has 3 action buttons: Mail icon (11 found), Key icon (11 found), Trash icon (11 found) ✅. (4) Clicked Mail icon → Email change modal opens ✅. (5) Modal title 'Changer l'email' present ✅. (6) Modal shows current email with label 'Email actuel' ✅. (7) Input field for new email present (type='email') ✅. (8) 'Changer' button present ✅. (9) 'Annuler' button present and closes modal correctly ✅. (10) Blue button '2 demandes email' visible at top when pending requests exist ✅. All UI elements and interactions working perfectly."
 
 test_plan:
-  current_focus:
-    - "Email change request endpoints"
-    - "Admin email change via users panel"
+  current_focus: []
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
@@ -376,5 +404,7 @@ agent_communication:
       message: "✅ IMAGE UPLOAD FEATURE UI TESTING COMPLETED - ALL TESTS PASSED. Comprehensive testing of the newly added image upload feature for courses: (1) COURSE CREATE PAGE: 'Images d'illustration' section present with correct upload zone text 'Cliquez pour ajouter des images d'illustration'. Multiple image upload supported. Images appear in grid with delete button overlay. Successfully created course with test image. (2) COURSE VIEW PAGE: 'Illustrations' section displays when course has images. Images shown in responsive grid. Lightbox functionality working - clicking image opens full-size view with dark backdrop and close button. Lightbox closes correctly. (3) SETTINGS PAGE: LLM key section visible for admin. 'Emergent/OpenAI' provider badge displayed. Info text correctly mentions 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite'. (4) STUDENT ROLE: Students can view courses and images but 'Creer un cours' button NOT visible (correct). Students can view course details and see 'Illustrations' section. ALL 6 TESTS PASSED. NO CRITICAL ISSUES FOUND. Image upload feature fully functional across all user roles."
     - agent: "testing"
       message: "✅ COVER IMAGE FEATURE COMPREHENSIVE TESTING COMPLETED - ALL TESTS PASSED. Tested the new COVER IMAGE feature for courses: (1) COURSE CREATE PAGE: 'Image de couverture' section present with 'Recommande' badge. Upload zone displays 'Cliquez pour ajouter une image de couverture' text. Cover image upload working - successfully uploaded test PNG image (800x450 cyan with white text). Preview appears after upload with 'Image de couverture' badge and delete button. (2) COURSES LIST: Cover image displays as banner at top of course card (height 160px) with gradient overlay (from-black/60 via-black/10 to-transparent). Course title overlaid on image in white text with drop shadow. Visual quality excellent - test image clearly visible with professional appearance. Fallback to BookOpen icon for courses without cover. (3) COURSE VIEW PAGE: Cover image used as hero header background with opacity-30 and gradient overlay (from-zinc-900 via-zinc-900/80 to-zinc-900/40). Title displays in white (text-white) over cover image. Hero section looks polished and professional. (4) BACKEND: cover_image field properly saved in course document (CourseCreate/CourseUpdate models). Image served via GET /api/images/{filename}. Image cleanup on course deletion. ALL 8 TESTS PASSED. NO CRITICAL ISSUES FOUND. Cover image feature fully functional and production-ready."
+    - agent: "main"
+      message: "FRONTEND CHANGES FOR TESTING: 1) /welcome page disabled - route commented out in App.js, catch-all redirects to /login. LandingPage.js kept. 2) Monitoring moved to 2nd position in admin sidebar (after Tableau de bord). 3) SettingsPage.js - NEW 'Demande de changement d'email' section for etudiant AND formateur. Shows form with new_email + reason fields, or pending request status. 4) UsersPage.js - Admin has NEW email button (Mail icon) per user to directly change email via modal. Email change requests section appears when there are pending requests (blue button at top). Test credentials: admin@netbfrs.fr/admin123, formateur@netbfrs.fr/formateur123, alice.martin@netbfrs.fr/etudiant123. Please test all 4 frontend changes."
     - agent: "testing"
-      message: "✅ EMAIL CHANGE FEATURES COMPREHENSIVE TESTING COMPLETED - ALL 12 TESTS PASSED. Tested all new email change functionality: (1) POST /api/email-change-request: ✅ Formateur and student can create requests, ✅ Admin correctly forbidden (400), ✅ Duplicate emails rejected (400), ✅ Pending request duplicates rejected (400). (2) GET /api/email-change-requests: ✅ Admin can view all requests, ✅ Non-admin correctly forbidden (403). (3) PUT /api/email-change-requests/{id}?action=approve: ✅ Admin can approve requests, user email updated in DB. (4) PUT /api/email-change-requests/{id}?action=reject: ✅ Admin can reject requests. (5) GET /api/my-email-change-request: ✅ Users can view their own pending requests. (6) PUT /api/users/{user_id} with email: ✅ Admin can directly change user emails, ✅ Duplicate emails correctly rejected (400). All authentication, authorization, validation, and data persistence working correctly. Email change workflow fully functional and production-ready. NO CRITICAL ISSUES FOUND."
+      message: "✅ ALL 4 FRONTEND CHANGES COMPREHENSIVE TESTING COMPLETED - ALL TESTS PASSED. (1) /WELCOME PAGE DISABLED: Navigate to /welcome → redirects to /login ✅. Navigate to random page → redirects to /login ✅. Login page loads correctly ✅. (2) MONITORING SIDEBAR: Admin sidebar shows 'Monitoring' as 2nd item after 'Tableau de bord' ✅. Monitoring link clickable and page loads with server stats ✅. (3) EMAIL CHANGE REQUEST - SETTINGS PAGE: Formateur has pending request showing 'Demande en cours de traitement' (correct behavior) ✅. Student form shows 'Nouvel email souhaite' input, 'Raison (optionnel)' input, 'Envoyer la demande' button ✅. Student also has 'Demande de changement de mot de passe' section ✅. (4) ADMIN EMAIL CHANGE - USERS PAGE: 12 user rows loaded ✅. Each non-admin user has 3 action buttons (Mail, Key, Trash) - 11 of each found ✅. Mail icon opens modal with title 'Changer l'email', shows current email, has new email input, 'Changer' and 'Annuler' buttons ✅. Blue button '2 demandes email' visible when pending requests exist ✅. NO CRITICAL ISSUES FOUND. All 4 features fully functional and production-ready."
