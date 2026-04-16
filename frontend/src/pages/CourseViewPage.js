@@ -134,47 +134,49 @@ export default function CourseViewPage() {
       </div>
 
       {/* Objectives & Prerequisites */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {course.objectives && course.objectives.length > 0 && (
-          <Card className="bg-white/90 dark:bg-zinc-900/50 backdrop-blur-md border-gray-200 dark:border-gray-200 dark:border-zinc-800 shadow-sm dark:shadow-none hover:border-cyan-500/20 transition-colors">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm flex items-center gap-2 text-cyan-400" style={{ fontFamily: 'Space Grotesk' }}>
-                <Target className="w-4 h-4" /> Objectifs du cours
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ul className="space-y-2">
-                {course.objectives.map((obj, i) => (
-                  <li key={i} className="flex items-start gap-2.5 text-sm text-gray-700 dark:text-zinc-300">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0" />
-                    <span>{obj}</span>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
-        )}
+      {((course.objectives && course.objectives.length > 0) || (course.prerequisites && course.prerequisites.length > 0)) && (
+        <div className={`grid grid-cols-1 ${course.objectives?.length > 0 && course.prerequisites?.length > 0 ? 'md:grid-cols-2' : ''} gap-4`}>
+          {course.objectives && course.objectives.length > 0 && (
+            <Card className="bg-white/90 dark:bg-zinc-900/50 backdrop-blur-md border-gray-200 dark:border-zinc-800 shadow-sm dark:shadow-none hover:border-cyan-500/20 transition-colors">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm flex items-center gap-2 text-cyan-400" style={{ fontFamily: 'Space Grotesk' }}>
+                  <Target className="w-4 h-4" /> Objectifs du cours
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ul className="space-y-2">
+                  {course.objectives.map((obj, i) => (
+                    <li key={i} className="flex items-start gap-2.5 text-sm text-gray-700 dark:text-zinc-300">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0" />
+                      <span>{obj}</span>
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          )}
 
-        {course.prerequisites && course.prerequisites.length > 0 && (
-          <Card className="bg-white/90 dark:bg-zinc-900/50 backdrop-blur-md border-gray-200 dark:border-gray-200 dark:border-zinc-800 shadow-sm dark:shadow-none hover:border-violet-500/20 transition-colors">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm flex items-center gap-2 text-violet-400" style={{ fontFamily: 'Space Grotesk' }}>
-                <ListChecks className="w-4 h-4" /> Prerequis
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ul className="space-y-2">
-                {course.prerequisites.map((pre, i) => (
-                  <li key={i} className="flex items-start gap-2.5 text-sm text-gray-700 dark:text-zinc-300">
-                    <Lightbulb className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
-                    <span>{pre}</span>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
-        )}
-      </div>
+          {course.prerequisites && course.prerequisites.length > 0 && (
+            <Card className="bg-white/90 dark:bg-zinc-900/50 backdrop-blur-md border-gray-200 dark:border-zinc-800 shadow-sm dark:shadow-none hover:border-violet-500/20 transition-colors">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm flex items-center gap-2 text-violet-400" style={{ fontFamily: 'Space Grotesk' }}>
+                  <ListChecks className="w-4 h-4" /> Prerequis
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ul className="space-y-2">
+                  {course.prerequisites.map((pre, i) => (
+                    <li key={i} className="flex items-start gap-2.5 text-sm text-gray-700 dark:text-zinc-300">
+                      <Lightbulb className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
+                      <span>{pre}</span>
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
 
       {/* Video Player */}
       {videoUrl && (
@@ -237,7 +239,7 @@ export default function CourseViewPage() {
                   <img
                     src={`${API}/images/${imgFilename}`}
                     alt={`Illustration ${idx + 1} - ${course.title}`}
-                    className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
+                    className="w-full object-contain bg-white dark:bg-zinc-800 group-hover:scale-[1.02] transition-transform duration-300"
                     loading="lazy"
                   />
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center">
