@@ -1,5 +1,6 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
+
 # IDE and editors
 .idea/
 .vscode/
@@ -285,3 +286,7 @@ credentials.json
 *.pem
 *.key
 .credentials
+
+# Exception: .env.example files MUST be versioned
+!*.env.example
+!.env.example

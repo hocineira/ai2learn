@@ -27,7 +27,19 @@ mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
-JWT_SECRET = os.environ.get('JWT_SECRET', 'ai2lean-secret-key-2026')
+_jwt_secret = os.environ.get('JWT_SECRET')
+if not _jwt_secret:
+    raise RuntimeError(
+        "FATAL: JWT_SECRET manquant dans les variables d'environnement. "
+        "Generez-en un avec: python3 -c \"import secrets; print(secrets.token_hex(32))\" "
+        "puis ajoutez JWT_SECRET=<valeur> dans backend/.env"
+    )
+if len(_jwt_secret) < 32:
+    raise RuntimeError(
+        "FATAL: JWT_SECRET trop court (min 32 caracteres / 128 bits). "
+        "Utilisez: python3 -c \"import secrets; print(secrets.token_hex(32))\""
+    )
+JWT_SECRET = _jwt_secret
 JWT_ALGORITHM = "HS256"
 EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY')
 
