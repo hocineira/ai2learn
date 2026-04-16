@@ -9,7 +9,24 @@ body {
   font-family: 'Outfit', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  font-size: 15px;
 }
+
+/* ─── Global font size boost ─── */
+/* Increase all small text sizes for better readability */
+.text-xs { font-size: 0.82rem !important; line-height: 1.25rem !important; }
+.text-sm { font-size: 0.94rem !important; line-height: 1.4rem !important; }
+.text-base { font-size: 1.06rem !important; }
+
+/* Bump up very tiny text */
+[class*="text-[9px]"] { font-size: 11px !important; }
+[class*="text-[10px]"] { font-size: 12px !important; }
+
+/* Sidebar nav items */
+nav .text-sm { font-size: 0.9rem !important; }
+
+/* Badge text */
+.badge, [class*="Badge"] { font-size: 0.78rem; }
 
 code {
   font-family: 'JetBrains Mono', monospace;
