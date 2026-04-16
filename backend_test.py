@@ -12,7 +12,7 @@ from PIL import Image
 import io
 
 # Configuration
-BASE_URL = "https://api-corrector.preview.emergentagent.com/api"
+BASE_URL = "https://salut-check-3.preview.emergentagent.com/api"
 
 # Test credentials
 ADMIN_CREDS = {"email": "admin@netbfrs.fr", "password": "admin123"}

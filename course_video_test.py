@@ -6,7 +6,7 @@ import tempfile
 from datetime import datetime
 
 class CourseVideoTester:
-    def __init__(self, base_url="https://api-corrector.preview.emergentagent.com/api"):
+    def __init__(self, base_url="https://salut-check-3.preview.emergentagent.com/api"):
         self.base_url = base_url
         self.tokens = {}
         self.test_data = {}
