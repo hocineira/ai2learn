@@ -290,3 +290,12 @@ credentials.json
 # Exception: .env.example files MUST be versioned
 !*.env.example
 !.env.example
+-e 
+# Environment and credential files
+.env
+.env.*
+*.env
+credentials.json
+*.pem
+*.key
+.credentials
