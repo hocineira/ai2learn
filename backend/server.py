@@ -14,6 +14,9 @@ import bcrypt
 import jwt
 import json
 import asyncio
+import platform
+import subprocess
+import re
 import base64
 import shutil
 
@@ -1619,8 +1622,6 @@ async def get_server_stats(current_user: dict = Depends(auth_dependency)):
     if current_user["role"] != "admin":
         raise HTTPException(status_code=403, detail="Admin uniquement")
     
-    import platform
-    
     total_users = await db.users.count_documents({})
     total_students = await db.users.count_documents({"role": "etudiant"})
     total_exercises = await db.exercises.count_documents({})
@@ -1654,6 +1655,383 @@ async def get_server_stats(current_user: dict = Depends(auth_dependency)):
             "collections": db_stats,
         },
     }
+
+# ─── System Updates Management ───
+
+async def _run_cmd(cmd: list, timeout: int = 120) -> dict:
+    """Run a shell command asynchronously and return stdout/stderr/returncode"""
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
+        return {
+            "stdout": stdout.decode("utf-8", errors="replace"),
+            "stderr": stderr.decode("utf-8", errors="replace"),
+            "returncode": proc.returncode,
+        }
+    except asyncio.TimeoutError:
+        proc.kill()
+        return {"stdout": "", "stderr": "Commande timeout", "returncode": -1}
+    except Exception as e:
+        return {"stdout": "", "stderr": str(e), "returncode": -1}
+
+
+def _parse_upgradable(output: str) -> list:
+    """Parse apt list --upgradable output into structured data"""
+    packages = []
+    for line in output.strip().split("\n"):
+        if "/" not in line or "Listing..." in line:
+            continue
+        try:
+            # Format: package_name/source version_new arch [upgradable from: version_old]
+            match = re.match(r'^(\S+)/(\S+)\s+(\S+)\s+(\S+)(?:\s+\[upgradable from:\s+(\S+)\])?', line)
+            if match:
+                pkg_name = match.group(1)
+                source = match.group(2)
+                new_version = match.group(3)
+                arch = match.group(4)
+                old_version = match.group(5) or "inconnu"
+                packages.append({
+                    "name": pkg_name,
+                    "source": source,
+                    "current_version": old_version,
+                    "new_version": new_version,
+                    "arch": arch,
+                })
+        except Exception:
+            continue
+    return packages
+
+
+@api_router.get("/system/check-updates")
+async def check_system_updates(current_user: dict = Depends(auth_dependency)):
+    """Admin: check for available system updates (apt update + list upgradable)"""
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin uniquement")
+    
+    # apt update
+    update_res = await _run_cmd(["apt-get", "update", "-qq"], timeout=120)
+    if update_res["returncode"] != 0:
+        logger.warning(f"apt update stderr: {update_res['stderr']}")
+    
+    # List upgradable
+    list_res = await _run_cmd(["apt", "list", "--upgradable"], timeout=30)
+    packages = _parse_upgradable(list_res["stdout"])
+    
+    # Get system info
+    os_info = ""
+    try:
+        lsb = await _run_cmd(["lsb_release", "-ds"], timeout=5)
+        os_info = lsb["stdout"].strip()
+    except Exception:
+        os_info = f"{platform.system()} {platform.release()}"
+    
+    # Get last update time from apt history
+    last_update = None
+    try:
+        hist_res = await _run_cmd(["stat", "-c", "%Y", "/var/cache/apt/pkgcache.bin"], timeout=5)
+        if hist_res["returncode"] == 0:
+            ts = int(hist_res["stdout"].strip())
+            last_update = datetime.fromtimestamp(ts, tz=timezone.utc).isoformat()
+    except Exception:
+        pass
+    
+    # Save check to DB for history
+    await db.system_update_checks.insert_one({
+        "id": str(uuid.uuid4()),
+        "checked_at": datetime.now(timezone.utc).isoformat(),
+        "packages_available": len(packages),
+        "checked_by": current_user["id"],
+    })
+    
+    return {
+        "packages": packages,
+        "total_upgradable": len(packages),
+        "os_info": os_info,
+        "last_cache_update": last_update,
+        "checked_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+@api_router.get("/system/upgradable")
+async def list_upgradable_packages(current_user: dict = Depends(auth_dependency)):
+    """Admin: list currently upgradable packages without running apt update"""
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin uniquement")
+    
+    list_res = await _run_cmd(["apt", "list", "--upgradable"], timeout=30)
+    packages = _parse_upgradable(list_res["stdout"])
+    
+    return {"packages": packages, "total_upgradable": len(packages)}
+
+
+class SystemUpdateApply(BaseModel):
+    packages: Optional[List[str]] = None  # None = upgrade all, list = specific packages
+    security_only: bool = False
+
+
+@api_router.post("/system/apply-updates")
+async def apply_system_updates(data: SystemUpdateApply, current_user: dict = Depends(auth_dependency)):
+    """Admin: apply system updates (all or selected packages)"""
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin uniquement")
+    
+    update_id = str(uuid.uuid4())
+    started_at = datetime.now(timezone.utc).isoformat()
+    
+    # Save update start to DB
+    update_doc = {
+        "id": update_id,
+        "started_at": started_at,
+        "status": "in_progress",
+        "packages_requested": data.packages or ["all"],
+        "applied_by": current_user["id"],
+        "applied_by_name": current_user["full_name"],
+        "output": "",
+        "error": "",
+    }
+    await db.system_updates.insert_one(update_doc)
+    
+    # Build the command
+    if data.packages and len(data.packages) > 0:
+        # Install specific packages
+        cmd = ["apt-get", "install", "-y", "--only-upgrade"] + data.packages
+    else:
+        # Full upgrade
+        cmd = ["apt-get", "upgrade", "-y"]
+    
+    # Set DEBIAN_FRONTEND=noninteractive
+    env_cmd = ["env", "DEBIAN_FRONTEND=noninteractive"] + cmd
+    
+    result = await _run_cmd(env_cmd, timeout=300)
+    
+    finished_at = datetime.now(timezone.utc).isoformat()
+    status = "success" if result["returncode"] == 0 else "error"
+    
+    # Parse updated packages from output
+    updated_packages = []
+    for line in result["stdout"].split("\n"):
+        if line.startswith("Setting up ") or line.startswith("Unpacking "):
+            pkg_match = re.match(r'(?:Setting up|Unpacking)\s+(\S+)\s+\((\S+)\)', line)
+            if pkg_match:
+                updated_packages.append({
+                    "name": pkg_match.group(1),
+                    "version": pkg_match.group(2),
+                })
+    
+    # Update DB record
+    await db.system_updates.update_one(
+        {"id": update_id},
+        {"$set": {
+            "status": status,
+            "finished_at": finished_at,
+            "output": result["stdout"][-5000:],  # Keep last 5k chars
+            "error": result["stderr"][-2000:],
+            "updated_packages": updated_packages,
+            "packages_count": len(updated_packages),
+        }}
+    )
+    
+    return {
+        "id": update_id,
+        "status": status,
+        "packages_updated": len(updated_packages),
+        "updated_packages": updated_packages,
+        "output_preview": result["stdout"][-2000:],
+        "error": result["stderr"][-1000:] if result["returncode"] != 0 else "",
+        "started_at": started_at,
+        "finished_at": finished_at,
+    }
+
+
+@api_router.get("/system/changelog/{package_name}")
+async def get_package_changelog(package_name: str, current_user: dict = Depends(auth_dependency)):
+    """Admin: get changelog/patch notes for a specific package"""
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin uniquement")
+    
+    # Sanitize package name
+    safe_name = re.sub(r'[^a-zA-Z0-9._\-+]', '', package_name)
+    if not safe_name:
+        raise HTTPException(status_code=400, detail="Nom de package invalide")
+    
+    # Try apt changelog
+    result = await _run_cmd(["apt-get", "changelog", safe_name], timeout=30)
+    
+    if result["returncode"] == 0 and result["stdout"].strip():
+        # Parse changelog - get first ~50 lines (most recent changes)
+        lines = result["stdout"].strip().split("\n")
+        changelog_preview = "\n".join(lines[:80])
+        
+        # Try to extract version entries
+        entries = []
+        current_entry = None
+        for line in lines[:200]:
+            # Changelog entry header: package (version) distro; urgency=level
+            header_match = re.match(r'^(\S+)\s+\(([^)]+)\)\s+(\S+);\s+urgency=(\S+)', line)
+            if header_match:
+                if current_entry:
+                    entries.append(current_entry)
+                current_entry = {
+                    "package": header_match.group(1),
+                    "version": header_match.group(2),
+                    "distribution": header_match.group(3),
+                    "urgency": header_match.group(4),
+                    "changes": [],
+                    "author": "",
+                    "date": "",
+                }
+            elif current_entry and line.startswith("  * "):
+                current_entry["changes"].append(line.strip()[2:])
+            elif current_entry and line.startswith("  - "):
+                current_entry["changes"].append(line.strip()[2:])
+            elif current_entry and line.startswith(" -- "):
+                current_entry["author"] = line.strip()[3:].strip()
+                # Extract date
+                date_match = re.search(r'>\s+(.+)$', line)
+                if date_match:
+                    current_entry["date"] = date_match.group(1).strip()
+        
+        if current_entry:
+            entries.append(current_entry)
+        
+        return {
+            "package": safe_name,
+            "changelog_raw": changelog_preview,
+            "entries": entries[:10],  # Return up to 10 most recent entries
+            "available": True,
+        }
+    
+    # Try dpkg info as fallback
+    info_res = await _run_cmd(["dpkg", "-s", safe_name], timeout=10)
+    description = ""
+    if info_res["returncode"] == 0:
+        for line in info_res["stdout"].split("\n"):
+            if line.startswith("Description:"):
+                description = line.split(":", 1)[1].strip()
+                break
+    
+    return {
+        "package": safe_name,
+        "changelog_raw": f"Changelog non disponible pour {safe_name}",
+        "entries": [],
+        "description": description,
+        "available": False,
+    }
+
+
+@api_router.get("/system/update-history")
+async def get_update_history(current_user: dict = Depends(auth_dependency)):
+    """Admin: get history of system updates applied through the panel"""
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin uniquement")
+    
+    history = await db.system_updates.find({}, {"_id": 0, "output": 0}).sort("started_at", -1).to_list(50)
+    return history
+
+
+@api_router.get("/system/update-detail/{update_id}")
+async def get_update_detail(update_id: str, current_user: dict = Depends(auth_dependency)):
+    """Admin: get detailed info about a specific update"""
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin uniquement")
+    
+    update = await db.system_updates.find_one({"id": update_id}, {"_id": 0})
+    if not update:
+        raise HTTPException(status_code=404, detail="Mise a jour non trouvee")
+    return update
+
+
+@api_router.get("/system/info")
+async def get_system_info(current_user: dict = Depends(auth_dependency)):
+    """Admin: get detailed system information"""
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin uniquement")
+    
+    info = {
+        "os": f"{platform.system()} {platform.release()}",
+        "python_version": platform.python_version(),
+        "hostname": platform.node(),
+        "architecture": platform.machine(),
+        "processor": platform.processor() or "N/A",
+    }
+    
+    # OS details
+    try:
+        lsb = await _run_cmd(["lsb_release", "-a"], timeout=5)
+        if lsb["returncode"] == 0:
+            for line in lsb["stdout"].split("\n"):
+                if "Description:" in line:
+                    info["os_description"] = line.split(":", 1)[1].strip()
+                elif "Release:" in line:
+                    info["os_release"] = line.split(":", 1)[1].strip()
+                elif "Codename:" in line:
+                    info["os_codename"] = line.split(":", 1)[1].strip()
+    except Exception:
+        pass
+    
+    # Kernel version
+    try:
+        uname = await _run_cmd(["uname", "-r"], timeout=5)
+        if uname["returncode"] == 0:
+            info["kernel"] = uname["stdout"].strip()
+    except Exception:
+        pass
+    
+    # Uptime
+    try:
+        uptime = await _run_cmd(["uptime", "-p"], timeout=5)
+        if uptime["returncode"] == 0:
+            info["uptime"] = uptime["stdout"].strip()
+    except Exception:
+        pass
+    
+    # Disk usage
+    try:
+        df = await _run_cmd(["df", "-h", "/"], timeout=5)
+        if df["returncode"] == 0:
+            lines = df["stdout"].strip().split("\n")
+            if len(lines) >= 2:
+                parts = lines[1].split()
+                if len(parts) >= 5:
+                    info["disk"] = {
+                        "total": parts[1],
+                        "used": parts[2],
+                        "available": parts[3],
+                        "usage_percent": parts[4],
+                    }
+    except Exception:
+        pass
+    
+    # Memory
+    try:
+        mem = await _run_cmd(["free", "-h"], timeout=5)
+        if mem["returncode"] == 0:
+            lines = mem["stdout"].strip().split("\n")
+            if len(lines) >= 2:
+                parts = lines[1].split()
+                if len(parts) >= 3:
+                    info["memory"] = {
+                        "total": parts[1],
+                        "used": parts[2],
+                        "available": parts[len(parts)-1] if len(parts) > 5 else parts[3],
+                    }
+    except Exception:
+        pass
+    
+    # Installed packages count
+    try:
+        dpkg = await _run_cmd(["dpkg", "--get-selections"], timeout=10)
+        if dpkg["returncode"] == 0:
+            info["installed_packages"] = len([l for l in dpkg["stdout"].split("\n") if l.strip()])
+    except Exception:
+        pass
+    
+    return info
+
 
 # ─── Manual Feedback ───
 
