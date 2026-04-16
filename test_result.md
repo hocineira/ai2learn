@@ -295,8 +295,8 @@ frontend:
 
 metadata:
   created_by: "main_agent"
-  version: "2.6"
-  test_sequence: 9
+  version: "2.7"
+  test_sequence: 10
   run_ui: true
 
   - task: "Email change request endpoints"
@@ -400,21 +400,22 @@ metadata:
 
   - task: "System updates UI - Monitoring Page"
     implemented: true
-    working: "NA"
+    working: true
     file: "frontend/src/pages/MonitoringPage.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
         - working: "NA"
           agent: "main"
           comment: "Added 'Mises a jour' tab to MonitoringPage with: system info cards, check updates button, upgradable packages table with checkboxes, apply all/selected updates, expandable patch notes per package, update history with detail view."
+        - working: true
+          agent: "testing"
+          comment: "✅ COMPREHENSIVE SYSTEM UPDATES UI TESTING COMPLETED - ALL TESTS PASSED. Tested all critical flows for 'Mises a jour' tab: (1) ACCESS TAB: ✅ All 5 tabs present (Vue generale, Mises a jour, Sessions actives, Securite, Historique). Successfully clicked 'Mises a jour' tab (data-testid='tab-updates'). (2) SYSTEM INFO CARDS: ✅ All 5 cards displayed correctly - SYSTEME (Debian GNU/Linux 12 bookworm, Kernel 6.12.55+), UPTIME (up 1 day, 8 hours, 6 minutes), DISQUE (22G/95G, 23% utilise), MEMOIRE (16Gi/31Gi), PAQUETS (517 installes). (3) SEARCH FOR UPDATES: ✅ 'Rechercher' button (data-testid='check-updates') clicked successfully. Loading state appeared ('Recherche des mises a jour en cours'). Results loaded after ~30 seconds. Found '7 mise(s) a jour disponible(s)' message. (4) UPDATE RESULTS TABLE: ✅ All table headers present (PAQUET, VERSION ACTUELLE, NOUVELLE VERSION, SOURCE, PATCH NOTES). 7 packages listed (chromium-common, chromium, libgdk-pixbuf-2.0-0, libgdk-pixbuf2.0-common, openssh-client, openssh-server, openssh-sftp-server). 'Tout mettre a jour' button (data-testid='apply-all-updates') visible. (5) PACKAGE SELECTION: ✅ 8 checkboxes found (1 select-all + 7 packages). Successfully clicked individual package checkbox - checked state confirmed. 'Installer (7)' button appeared when packages selected. Select-all checkbox working correctly. (6) PATCH NOTES EXPANSION: ✅ Expand button (ChevronRight icon) clicked successfully. Patch notes section expanded showing 'Patch notes - chromium-common' with changelog content. (7) UPDATE HISTORY: ✅ 'Historique des mises a jour' section present at bottom. Empty state message displayed correctly ('Aucune mise a jour appliquee depuis le panel'). NO CRITICAL ISSUES FOUND. All UI elements, interactions, and data display working perfectly. System updates feature fully functional and production-ready."
 
 
 test_plan:
-  current_focus:
-    - "System updates management endpoints"
-    - "System updates UI"
+  current_focus: []
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
@@ -440,3 +441,5 @@ agent_communication:
       message: "NEW SYSTEM UPDATES FEATURE: Added complete system update management to the admin panel. Backend: GET /api/system/check-updates, GET /api/system/upgradable, POST /api/system/apply-updates, GET /api/system/changelog/{pkg}, GET /api/system/update-history, GET /api/system/update-detail/{id}, GET /api/system/info. Frontend: New 'Mises a jour' tab in MonitoringPage with system info cards, upgradable packages table with selection, patch notes, and update history. All admin-only. Test credentials: admin@netbfrs.fr/admin123. Please test backend endpoints and frontend UI."
     - agent: "testing"
       message: "✅ SYSTEM UPDATES BACKEND TESTING COMPLETED - ALL TESTS PASSED. Comprehensive testing of all 6 system update endpoints: (1) GET /api/system/info: ✅ Admin access working, returns OS (Linux 6.12.55+), Python (3.11.15), hostname, architecture (aarch64), disk usage (95G total, 23% used), memory (31Gi total), 517 installed packages. ✅ Student correctly forbidden (403). (2) GET /api/system/check-updates: ✅ Admin can run apt update and list upgradable packages (found 7 packages including chromium-common), ✅ Student forbidden (403). (3) GET /api/system/upgradable: ✅ Admin can list upgradable packages without apt update. (4) GET /api/system/changelog/{package}: ✅ Admin can get package changelog, ✅ Invalid packages handled gracefully. (5) GET /api/system/update-history: ✅ Admin can view update history (empty as expected). (6) GET /api/system/update-detail/{id}: ✅ Admin can get update details, ✅ Fake IDs return 404. POST /api/system/apply-updates intentionally NOT tested (would upgrade packages). ALL 10 TESTS PASSED. System updates backend fully functional and secure."
+    - agent: "testing"
+      message: "✅ SYSTEM UPDATES UI TESTING COMPLETED - ALL TESTS PASSED. Comprehensive testing of 'Mises a jour' tab: (1) ACCESS: All 5 tabs present, successfully clicked 'Mises a jour' tab. (2) SYSTEM INFO CARDS: All 5 cards displayed (SYSTEME: Debian GNU/Linux 12, UPTIME: 1 day 8h 6min, DISQUE: 22G/95G 23%, MEMOIRE: 16Gi/31Gi, PAQUETS: 517). (3) SEARCH UPDATES: 'Rechercher' button clicked, loading state appeared, results loaded. Found '7 mise(s) a jour disponible(s)'. (4) TABLE: All headers present (PAQUET, VERSION ACTUELLE, NOUVELLE VERSION, SOURCE, PATCH NOTES). 7 packages listed. 'Tout mettre a jour' button visible. (5) SELECTION: 8 checkboxes working, 'Installer (7)' button appeared. (6) PATCH NOTES: Expand button working, patch notes section displayed. (7) HISTORY: 'Historique des mises a jour' section present with empty state. NO CRITICAL ISSUES. System updates UI fully functional and production-ready."
