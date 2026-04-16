@@ -22,6 +22,8 @@ import CourseCreatePage from '@/pages/CourseCreatePage';
 import CoursesListPage from '@/pages/CoursesListPage';
 import CourseViewPage from '@/pages/CourseViewPage';
 import SettingsPage from '@/pages/SettingsPage';
+import LandingPage from '@/pages/LandingPage';
+import LoginHistoryPage from '@/pages/LoginHistoryPage';
 import axios from 'axios';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -69,6 +71,7 @@ function App() {
           <ThemedToaster />
           <Routes>
             <Route path="/login" element={<AuthGuard><LoginPage /></AuthGuard>} />
+            <Route path="/welcome" element={<LandingPage />} />
             <Route path="/dashboard" element={<ProtectedRoute><DashboardRouter /></ProtectedRoute>} />
             <Route path="/exercises" element={<ProtectedRoute><ExercisesPage /></ProtectedRoute>} />
             <Route path="/exercises/create" element={<ProtectedRoute roles={['admin', 'formateur']}><ExerciseCreate /></ProtectedRoute>} />
@@ -85,8 +88,9 @@ function App() {
             <Route path="/courses/view/:courseId" element={<ProtectedRoute><CourseViewPage /></ProtectedRoute>} />
             <Route path="/courses/:exerciseId" element={<ProtectedRoute><CoursePage /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+            <Route path="/login-history" element={<ProtectedRoute roles={['admin', 'formateur']}><LoginHistoryPage /></ProtectedRoute>} />
             <Route path="/stats" element={<ProtectedRoute roles={['admin']}><AdminDashboard /></ProtectedRoute>} />
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            <Route path="*" element={<Navigate to="/welcome" replace />} />
           </Routes>
         </AuthProvider>
       </BrowserRouter>

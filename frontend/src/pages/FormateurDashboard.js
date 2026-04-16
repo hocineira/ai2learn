@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
-import { BookOpen, Users, TrendingUp, PlusCircle, Download, BarChart3 } from 'lucide-react';
+import { BookOpen, Users, TrendingUp, PlusCircle, Download, BarChart3, AlertTriangle, Clock, UserX } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -37,6 +37,7 @@ export default function FormateurDashboard() {
   const [charts, setCharts] = useState(null);
   const [exercises, setExercises] = useState([]);
   const [tracking, setTracking] = useState([]);
+  const [alerts, setAlerts] = useState({ struggling: [], inactive: [] });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -45,16 +46,18 @@ export default function FormateurDashboard() {
       try {
         const headers = getAuthHeaders();
         const f = activeFormation || '';
-        const [statsRes, chartsRes, exRes, trackRes] = await Promise.all([
+        const [statsRes, chartsRes, exRes, trackRes, alertsRes] = await Promise.all([
           axios.get(`${API}/stats/overview?formation=${f}`, { headers }),
           axios.get(`${API}/stats/charts?formation=${f}`, { headers }),
           axios.get(`${API}/exercises?formation=${f}`, { headers }),
           axios.get(`${API}/stats/students-tracking?formation=${f}`, { headers }),
+          axios.get(`${API}/stats/formateur-alerts?formation=${f}`, { headers }).catch(() => ({ data: { struggling: [], inactive: [] } })),
         ]);
         setStats(statsRes.data);
         setCharts(chartsRes.data);
         setExercises(exRes.data);
         setTracking(trackRes.data);
+        setAlerts(alertsRes.data || { struggling: [], inactive: [] });
       } catch (err) { console.error(err); }
       setLoading(false);
     };
@@ -138,6 +141,58 @@ export default function FormateurDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Alertes */}
+      {(alerts.struggling.length > 0 || alerts.inactive.length > 0) && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {alerts.struggling.length > 0 && (
+            <Card className="bg-white/90 dark:bg-zinc-900/50 backdrop-blur-md border-red-200 dark:border-red-900/30 shadow-sm dark:shadow-none">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2 text-red-500" style={{ fontFamily: 'Space Grotesk' }}>
+                  <AlertTriangle className="w-4 h-4" /> Etudiants en difficulte
+                  <Badge className="bg-red-500/15 text-red-400 border-red-500/30 text-[10px]">{alerts.struggling.length}</Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {alerts.struggling.slice(0, 5).map((s) => (
+                  <div key={s.id} className="flex items-center justify-between p-2 rounded-lg bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-900/20">
+                    <div>
+                      <p className="text-sm font-medium th-text">{s.full_name}</p>
+                      <p className="text-xs th-text-faint">{s.email}</p>
+                    </div>
+                    <span className="text-lg font-bold text-red-500" style={{ fontFamily: 'Space Grotesk' }}>{s.avg_score_20}/20</span>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+          
+          {alerts.inactive.length > 0 && (
+            <Card className="bg-white/90 dark:bg-zinc-900/50 backdrop-blur-md border-amber-200 dark:border-amber-900/30 shadow-sm dark:shadow-none">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2 text-amber-500" style={{ fontFamily: 'Space Grotesk' }}>
+                  <UserX className="w-4 h-4" /> Etudiants inactifs
+                  <Badge className="bg-amber-500/15 text-amber-400 border-amber-500/30 text-[10px]">{alerts.inactive.length}</Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {alerts.inactive.slice(0, 5).map((s) => (
+                  <div key={s.id} className="flex items-center justify-between p-2 rounded-lg bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-900/20">
+                    <div>
+                      <p className="text-sm font-medium th-text">{s.full_name}</p>
+                      <p className="text-xs th-text-faint">{s.email}</p>
+                    </div>
+                    <span className="text-sm font-medium text-amber-500 flex items-center gap-1">
+                      <Clock className="w-3 h-3" />
+                      {s.days_inactive >= 999 ? 'Jamais actif' : `${s.days_inactive}j inactif`}
+                    </span>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

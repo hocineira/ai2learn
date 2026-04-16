@@ -246,6 +246,7 @@ class ExerciseCreate(BaseModel):
     time_limit: int = 0
     shared: bool = False
     exercise_type: str = "standard"
+    exam_mode: bool = False  # Fullscreen + anti-copy
     lab_instructions: Optional[str] = None
     lab_username: Optional[str] = None
     lab_password: Optional[str] = None
@@ -358,6 +359,20 @@ async def login(data: UserLogin):
     if not user or not verify_password(data.password, user["password"]):
         raise HTTPException(status_code=401, detail="Identifiants incorrects")
     token = create_token(user["id"], user["role"])
+    
+    # Log login history
+    try:
+        await db.login_history.insert_one({
+            "id": str(uuid.uuid4()),
+            "user_id": user["id"],
+            "user_name": user.get("full_name", ""),
+            "user_email": user.get("email", user.get("username", "")),
+            "role": user.get("role", ""),
+            "logged_at": datetime.now(timezone.utc).isoformat(),
+        })
+    except Exception:
+        pass
+    
     return {"token": token, "user": user_response(user)}
 
 @api_router.get("/auth/me")
@@ -438,6 +453,7 @@ async def create_exercise(data: ExerciseCreate, current_user: dict = Depends(aut
         "questions": [q.model_dump() for q in data.questions],
         "time_limit": data.time_limit,
         "exercise_type": data.exercise_type,
+        "exam_mode": data.exam_mode,
         "lab_instructions": data.lab_instructions,
         "lab_username": data.lab_username,
         "lab_password": data.lab_password,
@@ -489,6 +505,7 @@ async def update_exercise(exercise_id: str, data: ExerciseCreate, current_user: 
         "questions": [q.model_dump() for q in data.questions],
         "time_limit": data.time_limit,
         "exercise_type": data.exercise_type,
+        "exam_mode": data.exam_mode,
         "lab_instructions": data.lab_instructions,
         "lab_username": data.lab_username,
         "lab_password": data.lab_password,
@@ -1341,6 +1358,130 @@ async def handle_password_request(request_id: str, current_user: dict = Depends(
         )
     
     return {"message": "Demande traitee"}
+
+
+
+# ─── Login History ───
+
+@api_router.get("/login-history")
+async def get_login_history(current_user: dict = Depends(auth_dependency)):
+    """Admin: get login history"""
+    if current_user["role"] not in ["admin", "formateur"]:
+        raise HTTPException(status_code=403, detail="Acces refuse")
+    history = await db.login_history.find({}, {"_id": 0}).sort("logged_at", -1).to_list(200)
+    return history
+
+# ─── Manual Feedback ───
+
+class ManualFeedback(BaseModel):
+    feedback: str
+
+@api_router.post("/submissions/{submission_id}/feedback")
+async def add_manual_feedback(submission_id: str, data: ManualFeedback, current_user: dict = Depends(auth_dependency)):
+    """Formateur/Admin adds manual feedback to a submission"""
+    if current_user["role"] not in ["admin", "formateur"]:
+        raise HTTPException(status_code=403, detail="Formateur ou admin uniquement")
+    
+    submission = await db.submissions.find_one({"id": submission_id}, {"_id": 0})
+    if not submission:
+        raise HTTPException(status_code=404, detail="Soumission non trouvee")
+    
+    feedback_entry = {
+        "id": str(uuid.uuid4()),
+        "author_id": current_user["id"],
+        "author_name": current_user["full_name"],
+        "text": data.feedback,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    
+    await db.submissions.update_one(
+        {"id": submission_id},
+        {"$push": {"manual_feedbacks": feedback_entry}}
+    )
+    
+    # Notify student
+    await create_notification(
+        user_id=submission["student_id"],
+        title="Nouveau commentaire du formateur",
+        message=f"{current_user['full_name']} a commente votre exercice '{submission.get('exercise_title', '')}'",
+        notif_type="info",
+        link=f"/results/{submission_id}"
+    )
+    
+    return {"message": "Commentaire ajoute", "feedback": feedback_entry}
+
+# ─── Formateur Enhanced Stats ───
+
+@api_router.get("/stats/formateur-alerts")
+async def get_formateur_alerts(formation: str = None, current_user: dict = Depends(auth_dependency)):
+    """Get alerts for formateur: struggling students, inactive students"""
+    if current_user["role"] not in ["admin", "formateur"]:
+        raise HTTPException(status_code=403, detail="Acces refuse")
+    
+    form_filter = {"formation": formation} if formation else {}
+    students = await db.users.find({**form_filter, "role": "etudiant"}, {"_id": 0, "password": 0}).to_list(500)
+    
+    struggling = []
+    inactive = []
+    now = datetime.now(timezone.utc)
+    
+    for student in students:
+        # Get submissions
+        subs = await db.submissions.find(
+            {"student_id": student["id"], "graded": True},
+            {"_id": 0, "score": 1, "max_score": 1, "submitted_at": 1}
+        ).to_list(100)
+        
+        if subs:
+            # Calculate average score /20
+            total_score = sum(s.get("score", 0) for s in subs)
+            total_max = sum(s.get("max_score", 1) for s in subs)
+            avg_20 = round((total_score / max(total_max, 1)) * 20, 1)
+            
+            if avg_20 < 10:
+                struggling.append({
+                    "id": student["id"],
+                    "full_name": student.get("full_name", ""),
+                    "email": student.get("email", ""),
+                    "avg_score_20": avg_20,
+                    "submissions_count": len(subs),
+                    "formation": student.get("formation", ""),
+                })
+            
+            # Check last activity
+            last_sub = max(subs, key=lambda s: s.get("submitted_at", ""))
+            try:
+                last_date = datetime.fromisoformat(last_sub["submitted_at"].replace("Z", "+00:00"))
+                days_inactive = (now - last_date).days
+                if days_inactive > 7:
+                    inactive.append({
+                        "id": student["id"],
+                        "full_name": student.get("full_name", ""),
+                        "email": student.get("email", ""),
+                        "days_inactive": days_inactive,
+                        "last_activity": last_sub["submitted_at"],
+                        "formation": student.get("formation", ""),
+                    })
+            except Exception:
+                pass
+        else:
+            # No submissions at all = inactive
+            inactive.append({
+                "id": student["id"],
+                "full_name": student.get("full_name", ""),
+                "email": student.get("email", ""),
+                "days_inactive": 999,
+                "last_activity": None,
+                "formation": student.get("formation", ""),
+            })
+    
+    struggling.sort(key=lambda s: s["avg_score_20"])
+    inactive.sort(key=lambda s: s["days_inactive"], reverse=True)
+    
+    return {
+        "struggling": struggling,
+        "inactive": inactive,
+    }
 
 
 # ─── Seed Data ───

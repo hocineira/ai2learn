@@ -5,9 +5,11 @@ import axios from 'axios';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { BarChart3, ArrowLeft, CheckCircle2, XCircle, Clock, Cpu, Download, FileText } from 'lucide-react';
+import { BarChart3, ArrowLeft, CheckCircle2, XCircle, Clock, Cpu, Download, FileText, MessageSquare, Send } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import { toast } from 'sonner';
 
 export default function ResultsPage() {
   const { id } = useParams();
@@ -16,6 +18,8 @@ export default function ResultsPage() {
   const [submissions, setSubmissions] = useState([]);
   const [detail, setDetail] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [feedbackText, setFeedbackText] = useState('');
+  const [sendingFeedback, setSendingFeedback] = useState(false);
 
   useEffect(() => {
     const fetch = async () => {
@@ -124,6 +128,22 @@ export default function ResultsPage() {
     doc.save(`resultat-${sub.exercise_title?.replace(/[^a-zA-Z0-9]/g, '-') || 'exercice'}.pdf`);
   };
 
+  const handleSendFeedback = async () => {
+    if (!feedbackText.trim() || !detail) return;
+    setSendingFeedback(true);
+    try {
+      await axios.post(`${API}/submissions/${detail.id}/feedback`, { feedback: feedbackText.trim() }, { headers: getAuthHeaders() });
+      toast.success('Commentaire envoye');
+      setFeedbackText('');
+      // Reload detail
+      const res = await axios.get(`${API}/submissions/${detail.id}`, { headers: getAuthHeaders() });
+      setDetail(res.data);
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Erreur');
+    }
+    setSendingFeedback(false);
+  };
+
   if (loading) return <div className="text-gray-500 dark:text-zinc-500 text-center py-20">Chargement...</div>;
 
   // Detail view
@@ -193,6 +213,53 @@ export default function ResultsPage() {
             </CardHeader>
             <CardContent>
               <p className="text-sm text-gray-700 dark:text-zinc-300 leading-relaxed ai-typing">{detail.ai_feedback}</p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Manual Feedbacks */}
+        {detail.manual_feedbacks && detail.manual_feedbacks.length > 0 && (
+          <Card className="bg-white dark:bg-zinc-900/50 backdrop-blur-md border-violet-500/20">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2 text-violet-400" style={{ fontFamily: 'Space Grotesk' }}>
+                <MessageSquare className="w-4 h-4" /> Commentaires du formateur
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {detail.manual_feedbacks.map((fb) => (
+                <div key={fb.id} className="p-3 bg-violet-50 dark:bg-violet-900/10 border border-violet-200 dark:border-violet-800/30 rounded-lg">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-medium text-violet-600 dark:text-violet-400">{fb.author_name}</span>
+                    <span className="text-[10px] th-text-faint">{new Date(fb.created_at).toLocaleDateString('fr-FR')} a {new Date(fb.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
+                  </div>
+                  <p className="text-sm th-text-secondary">{fb.text}</p>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Add feedback (formateur/admin) */}
+        {(user?.role === 'admin' || user?.role === 'formateur') && (
+          <Card className="bg-white dark:bg-zinc-900/50 backdrop-blur-md border-gray-200 dark:border-zinc-800">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2 text-violet-400" style={{ fontFamily: 'Space Grotesk' }}>
+                <MessageSquare className="w-4 h-4" /> Ajouter un commentaire
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex gap-2">
+                <Input
+                  value={feedbackText}
+                  onChange={(e) => setFeedbackText(e.target.value)}
+                  placeholder="Votre commentaire pour l'etudiant..."
+                  className="bg-gray-50 dark:bg-zinc-900 border-gray-300 dark:border-zinc-700 text-gray-900 dark:text-zinc-100"
+                  onKeyDown={(e) => e.key === 'Enter' && handleSendFeedback()}
+                />
+                <Button onClick={handleSendFeedback} disabled={sendingFeedback || !feedbackText.trim()} className="bg-violet-600 hover:bg-violet-500 text-white flex-shrink-0">
+                  <Send className="w-4 h-4" />
+                </Button>
+              </div>
             </CardContent>
           </Card>
         )}

@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Clock, CheckCircle2, ArrowLeft, Send, BookOpen } from 'lucide-react';
+import { Clock, CheckCircle2, ArrowLeft, Send, BookOpen, Maximize, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function ExerciseTake() {
@@ -21,6 +21,8 @@ export default function ExerciseTake() {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(true);
   const [timeLeft, setTimeLeft] = useState(null);
+  const [examStarted, setExamStarted] = useState(false);
+  const [fullscreenWarning, setFullscreenWarning] = useState(false);
 
   useEffect(() => {
     const fetchExercise = async () => {
@@ -55,6 +57,49 @@ export default function ExerciseTake() {
     return () => clearInterval(timer);
   }, [timeLeft, submitted]);
 
+  // Exam mode: fullscreen + anti-copy
+  const isExamMode = exercise?.exam_mode === true;
+
+  useEffect(() => {
+    if (!isExamMode || submitted || !examStarted) return;
+    
+    // Anti-copy/paste
+    const preventCopy = (e) => { e.preventDefault(); toast.error('Copier/coller desactive en mode examen'); };
+    const preventContextMenu = (e) => { e.preventDefault(); };
+    
+    document.addEventListener('copy', preventCopy);
+    document.addEventListener('cut', preventCopy);
+    document.addEventListener('paste', preventCopy);
+    document.addEventListener('contextmenu', preventContextMenu);
+    
+    // Detect fullscreen exit
+    const onFullscreenChange = () => {
+      if (!document.fullscreenElement && !submitted) {
+        setFullscreenWarning(true);
+      }
+    };
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+    
+    return () => {
+      document.removeEventListener('copy', preventCopy);
+      document.removeEventListener('cut', preventCopy);
+      document.removeEventListener('paste', preventCopy);
+      document.removeEventListener('contextmenu', preventContextMenu);
+      document.removeEventListener('fullscreenchange', onFullscreenChange);
+    };
+  }, [isExamMode, submitted, examStarted]);
+
+  const enterFullscreen = async () => {
+    try {
+      await document.documentElement.requestFullscreen();
+      setExamStarted(true);
+      setFullscreenWarning(false);
+    } catch (err) {
+      toast.error('Impossible d\'activer le plein ecran');
+      setExamStarted(true);
+    }
+  };
+
   const handleSubmit = useCallback(async () => {
     if (submitting || submitted) return;
     setSubmitting(true);
@@ -88,6 +133,51 @@ export default function ExerciseTake() {
   const questions = exercise.questions || [];
   const current = questions[currentQ];
   const progress = (Object.keys(answers).length / questions.length) * 100;
+
+  // Exam mode: require fullscreen before starting
+  if (isExamMode && !examStarted && !submitted) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950 p-6">
+        <div className="max-w-md text-center animate-scale-in">
+          <div className="w-20 h-20 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center mx-auto mb-6">
+            <Maximize className="w-10 h-10 text-amber-400" />
+          </div>
+          <h2 className="text-2xl font-bold text-white mb-3" style={{ fontFamily: 'Space Grotesk' }}>Mode Examen</h2>
+          <p className="text-zinc-400 mb-2">Cet exercice est en <strong className="text-amber-400">mode examen</strong>.</p>
+          <ul className="text-sm text-zinc-500 space-y-1 mb-6">
+            <li>• L'exercice sera en plein ecran</li>
+            <li>• Le copier/coller sera desactive</li>
+            <li>• Le clic droit sera bloque</li>
+            {exercise.time_limit > 0 && <li>• Temps limite : {exercise.time_limit} minutes</li>}
+          </ul>
+          <Button onClick={enterFullscreen} className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white px-8 py-3 text-lg">
+            <Maximize className="w-5 h-5 mr-2" /> Demarrer l'examen
+          </Button>
+          <p className="text-xs text-zinc-600 mt-4">
+            <Button variant="link" className="text-zinc-500 hover:text-zinc-400 text-xs" onClick={() => navigate('/exercises')}>
+              Annuler et revenir aux exercices
+            </Button>
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Fullscreen warning overlay
+  if (fullscreenWarning && !submitted) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/95 p-6">
+        <div className="max-w-md text-center animate-bounce-in">
+          <AlertTriangle className="w-16 h-16 text-red-400 mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-white mb-3" style={{ fontFamily: 'Space Grotesk' }}>Plein ecran requis !</h2>
+          <p className="text-zinc-400 mb-6">Vous avez quitte le mode plein ecran. Revenez en plein ecran pour continuer l'examen.</p>
+          <Button onClick={enterFullscreen} className="bg-red-600 hover:bg-red-500 text-white px-8 py-3">
+            <Maximize className="w-5 h-5 mr-2" /> Revenir en plein ecran
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   // Result view
   if (submitted && result) {
@@ -128,20 +218,29 @@ export default function ExerciseTake() {
   }
 
   return (
-    <div className="space-y-6 max-w-3xl" data-testid="exercise-take-page">
+    <div className={`space-y-6 max-w-5xl ${isExamMode ? 'select-none' : ''}`} data-testid="exercise-take-page">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <Button variant="ghost" className="text-gray-500 dark:text-zinc-400 hover:text-cyan-400 mb-2 -ml-3" onClick={() => navigate('/exercises')}>
-            <ArrowLeft className="w-4 h-4 mr-1" /> Retour
-          </Button>
-          <h1 className="text-2xl font-bold tracking-tight" style={{ fontFamily: 'Space Grotesk' }}>{exercise.title}</h1>
+          {!isExamMode && (
+            <Button variant="ghost" className="text-gray-500 dark:text-zinc-400 hover:text-cyan-400 mb-2 -ml-3" onClick={() => navigate('/exercises')}>
+              <ArrowLeft className="w-4 h-4 mr-1" /> Retour
+            </Button>
+          )}
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="text-2xl font-bold tracking-tight" style={{ fontFamily: 'Space Grotesk' }}>{exercise.title}</h1>
+            {isExamMode && (
+              <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">
+                <Maximize className="w-3 h-3 mr-1" /> Mode Examen
+              </Badge>
+            )}
+          </div>
           <p className="text-gray-500 dark:text-zinc-500 text-sm mt-1">{exercise.description}</p>
         </div>
         {timeLeft !== null && (
-          <div className={`flex items-center gap-2 px-4 py-2 rounded-lg border ${timeLeft < 60 ? 'bg-red-500/10 border-red-500/30 text-red-400' : 'bg-gray-100 dark:bg-zinc-800 border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-zinc-300'}`}>
-            <Clock className="w-4 h-4" />
-            <span className="font-mono text-lg" style={{ fontFamily: 'JetBrains Mono' }}>{formatTime(timeLeft)}</span>
+          <div className={`flex items-center gap-2 px-5 py-3 rounded-xl border-2 ${timeLeft < 60 ? 'bg-red-500/10 border-red-500/40 text-red-400 animate-pulse' : timeLeft < 300 ? 'bg-amber-500/10 border-amber-500/30 text-amber-400' : 'bg-gray-100 dark:bg-zinc-800 border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-zinc-300'}`}>
+            <Clock className={`w-5 h-5 ${timeLeft < 60 ? 'animate-pulse' : ''}`} />
+            <span className="font-mono text-2xl font-bold" style={{ fontFamily: 'JetBrains Mono' }}>{formatTime(timeLeft)}</span>
           </div>
         )}
       </div>
