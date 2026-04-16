@@ -49,6 +49,27 @@ api_router = APIRouter(prefix="/api")
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+# ─── Rate Limiter (in-memory) ───
+from collections import defaultdict
+import time as _time
+
+_login_attempts: dict = defaultdict(list)  # ip -> [timestamp, ...]
+RATE_LIMIT_WINDOW = 300   # 5 minutes
+RATE_LIMIT_MAX = 10        # max 10 attempts per window
+
+def _check_rate_limit(ip: str) -> bool:
+    """Returns True if request is allowed, False if rate-limited."""
+    now = _time.time()
+    _login_attempts[ip] = [t for t in _login_attempts[ip] if now - t < RATE_LIMIT_WINDOW]
+    if len(_login_attempts[ip]) >= RATE_LIMIT_MAX:
+        return False
+    _login_attempts[ip].append(now)
+    return True
+
+# ─── Upload size limits ───
+MAX_VIDEO_SIZE = 100 * 1024 * 1024  # 100 MB
+MAX_IMAGE_SIZE = 10 * 1024 * 1024   # 10 MB
+
 # ─── LLM Provider Detection ───
 LLM_PROVIDER = None  # "emergent", "google", or None
 LLM_KEY = None
@@ -318,19 +339,29 @@ def hash_password(password: str) -> str:
 def verify_password(password: str, hashed: str) -> bool:
     return bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))
 
+JWT_TOKEN_EXPIRE_HOURS = int(os.environ.get('JWT_TOKEN_EXPIRE_HOURS', '24'))
+
 def create_token(user_id: str, role: str) -> str:
-    return jwt.encode({"user_id": user_id, "role": role}, JWT_SECRET, algorithm=JWT_ALGORITHM)
+    payload = {
+        "user_id": user_id,
+        "role": role,
+        "iat": datetime.now(timezone.utc),
+        "exp": datetime.now(timezone.utc) + __import__('datetime').timedelta(hours=JWT_TOKEN_EXPIRE_HOURS),
+    }
+    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
 async def auth_dependency(authorization: str = Header(None)):
     if not authorization:
         raise HTTPException(status_code=401, detail="Non authentifie")
     try:
         token = authorization[7:] if authorization.startswith("Bearer ") else authorization
-        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM], options={"require": ["exp", "user_id"]})
         user = await db.users.find_one({"id": payload["user_id"]}, {"_id": 0})
         if not user:
             raise HTTPException(status_code=401, detail="Utilisateur non trouve")
         return user
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expire — reconnectez-vous")
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Token invalide")
 
@@ -360,7 +391,7 @@ async def register(data: UserCreate):
         "username": data.email,
         "password": hash_password(data.password),
         "full_name": data.full_name,
-        "role": data.role if data.role in ["admin", "formateur", "etudiant"] else "etudiant",
+        "role": data.role if data.role in ["formateur", "etudiant"] else "etudiant",
         "formation": formation,
         "created_at": datetime.now(timezone.utc).isoformat()
     }
@@ -374,6 +405,11 @@ async def login(data: UserLogin, request: Request):
     if "," in client_ip:
         client_ip = client_ip.split(",")[0].strip()
     user_agent = request.headers.get("user-agent", "unknown")
+    
+    # Rate limiting
+    if not _check_rate_limit(client_ip):
+        logger.warning(f"Rate limit exceeded for IP {client_ip}")
+        raise HTTPException(status_code=429, detail="Trop de tentatives. Reessayez dans 5 minutes.")
     
     # Search by email or legacy username
     user = await db.users.find_one({"$or": [{"email": data.email}, {"username": data.email}]}, {"_id": 0})
@@ -1809,8 +1845,16 @@ async def apply_system_updates(data: SystemUpdateApply, current_user: dict = Dep
     
     # Build the command
     if data.packages and len(data.packages) > 0:
+        # Sanitize package names to prevent injection
+        safe_packages = []
+        for pkg in data.packages:
+            sanitized = re.sub(r'[^a-zA-Z0-9._\-+:]', '', pkg)
+            if sanitized and len(sanitized) > 1:
+                safe_packages.append(sanitized)
+        if not safe_packages:
+            raise HTTPException(status_code=400, detail="Aucun nom de paquet valide")
         # Install specific packages
-        cmd = ["apt-get", "install", "-y", "--only-upgrade"] + data.packages
+        cmd = ["apt-get", "install", "-y", "--only-upgrade"] + safe_packages
     else:
         # Full upgrade
         cmd = ["apt-get", "upgrade", "-y"]
@@ -2230,12 +2274,7 @@ async def seed_data():
         "time_limit": 25, "created_by": formateur_id, "created_by_name": "Jean Dupont", "created_at": datetime.now(timezone.utc).isoformat()
     })
     
-    return {"message": "Donnees AI2Lean initialisees", "credentials": {
-        "admin": {"email": "admin@netbfrs.fr", "password": "admin123"},
-        "formateur": {"email": "formateur@netbfrs.fr", "password": "formateur123"},
-        "bts_sisr": {"email": "alice.martin@netbfrs.fr / bob.durand@netbfrs.fr", "password": "etudiant123"},
-        "bachelor_ais": {"email": "claire.petit@netbfrs.fr / david.moreau@netbfrs.fr", "password": "etudiant123"},
-    }}
+    return {"message": "Donnees AI2Lean initialisees (comptes demo crees). Consultez la documentation pour les identifiants."}
 
 
 # ─── Course Routes ───
@@ -2402,24 +2441,35 @@ async def upload_video(file: UploadFile = File(...), current_user: dict = Depend
     if current_user["role"] not in ["admin", "formateur"]:
         raise HTTPException(status_code=403, detail="Acces refuse")
     
-    # Validate file type
+    # Validate file type (whitelist extensions, don't trust content_type alone)
+    allowed_video_ext = {".mp4", ".webm", ".ogg"}
+    ext = Path(file.filename).suffix.lower() if file.filename else ".mp4"
+    if ext not in allowed_video_ext:
+        raise HTTPException(status_code=400, detail=f"Extension non autorisee. Accepte: {', '.join(allowed_video_ext)}")
     if not file.content_type or not file.content_type.startswith("video/"):
         raise HTTPException(status_code=400, detail="Le fichier doit etre une video (MP4, WebM, etc.)")
     
-    # Generate unique filename
-    ext = Path(file.filename).suffix if file.filename else ".mp4"
+    # Generate unique filename (UUID = no path traversal possible)
     filename = f"{uuid.uuid4()}{ext}"
     filepath = UPLOAD_DIR / filename
     
-    # Save file in chunks
+    # Save file in chunks with size limit
     try:
+        total_size = 0
         with open(filepath, "wb") as buffer:
             while chunk := await file.read(1024 * 1024):  # 1MB chunks
+                total_size += len(chunk)
+                if total_size > MAX_VIDEO_SIZE:
+                    buffer.close()
+                    filepath.unlink(missing_ok=True)
+                    raise HTTPException(status_code=413, detail=f"Fichier trop volumineux (max {MAX_VIDEO_SIZE // (1024*1024)} MB)")
                 buffer.write(chunk)
+    except HTTPException:
+        raise
     except Exception as e:
         if filepath.exists():
             filepath.unlink()
-        raise HTTPException(status_code=500, detail=f"Erreur upload: {str(e)}")
+        raise HTTPException(status_code=500, detail="Erreur upload")
     
     file_size = filepath.stat().st_size
     return {
@@ -2431,7 +2481,13 @@ async def upload_video(file: UploadFile = File(...), current_user: dict = Depend
 
 @api_router.get("/videos/{filename}")
 async def serve_video(filename: str):
+    # Path traversal protection
+    if "/" in filename or "\\" in filename or ".." in filename:
+        raise HTTPException(status_code=400, detail="Nom de fichier invalide")
     filepath = UPLOAD_DIR / filename
+    # Ensure resolved path stays within upload directory
+    if not filepath.resolve().is_relative_to(UPLOAD_DIR.resolve()):
+        raise HTTPException(status_code=400, detail="Acces refuse")
     if not filepath.exists():
         raise HTTPException(status_code=404, detail="Video non trouvee")
     
@@ -2471,25 +2527,36 @@ async def upload_image(file: UploadFile = File(...), current_user: dict = Depend
     if current_user["role"] not in ["admin", "formateur"]:
         raise HTTPException(status_code=403, detail="Acces refuse")
     
-    # Validate file type
-    allowed_types = ["image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml"]
+    # Validate file type (whitelist - NO SVG to prevent stored XSS)
+    allowed_types = ["image/jpeg", "image/png", "image/gif", "image/webp"]
+    allowed_ext = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
+    ext = Path(file.filename).suffix.lower() if file.filename else ".png"
+    if ext not in allowed_ext:
+        raise HTTPException(status_code=400, detail=f"Extension non autorisee. Accepte: {', '.join(allowed_ext)}")
     if not file.content_type or file.content_type not in allowed_types:
-        raise HTTPException(status_code=400, detail="Le fichier doit etre une image (JPEG, PNG, GIF, WebP, SVG)")
+        raise HTTPException(status_code=400, detail="Le fichier doit etre une image (JPEG, PNG, GIF, WebP)")
     
     # Generate unique filename
-    ext = Path(file.filename).suffix if file.filename else ".png"
     filename = f"{uuid.uuid4()}{ext}"
     filepath = UPLOAD_IMAGES_DIR / filename
     
-    # Save file in chunks
+    # Save file in chunks with size limit
     try:
+        total_size = 0
         with open(filepath, "wb") as buffer:
             while chunk := await file.read(1024 * 1024):  # 1MB chunks
+                total_size += len(chunk)
+                if total_size > MAX_IMAGE_SIZE:
+                    buffer.close()
+                    filepath.unlink(missing_ok=True)
+                    raise HTTPException(status_code=413, detail=f"Image trop volumineuse (max {MAX_IMAGE_SIZE // (1024*1024)} MB)")
                 buffer.write(chunk)
+    except HTTPException:
+        raise
     except Exception as e:
         if filepath.exists():
             filepath.unlink()
-        raise HTTPException(status_code=500, detail=f"Erreur upload: {str(e)}")
+        raise HTTPException(status_code=500, detail="Erreur upload")
     
     file_size = filepath.stat().st_size
     return {
@@ -2501,7 +2568,12 @@ async def upload_image(file: UploadFile = File(...), current_user: dict = Depend
 
 @api_router.get("/images/{filename}")
 async def serve_image(filename: str):
+    # Path traversal protection
+    if "/" in filename or "\\" in filename or ".." in filename:
+        raise HTTPException(status_code=400, detail="Nom de fichier invalide")
     filepath = UPLOAD_IMAGES_DIR / filename
+    if not filepath.resolve().is_relative_to(UPLOAD_IMAGES_DIR.resolve()):
+        raise HTTPException(status_code=400, detail="Acces refuse")
     if not filepath.exists():
         raise HTTPException(status_code=404, detail="Image non trouvee")
     
@@ -2576,7 +2648,10 @@ def guac_auth():
     r.raise_for_status()
     return r.json()["authToken"]
 
-def guac_create_connection(token, name, hostname, protocol="rdp", port="3389", username="Administrateur", password="Lab2026!"):
+LAB_DEFAULT_PASSWORD = os.environ.get('LAB_DEFAULT_PASSWORD', 'Lab2026!')
+
+def guac_create_connection(token, name, hostname, protocol="rdp", port="3389", username="Administrateur", password=None):
+    password = password or LAB_DEFAULT_PASSWORD
     payload = {
         "parentIdentifier": "ROOT",
         "name": name,
@@ -2776,7 +2851,7 @@ async def _provision_lab_background(lab_id: str, vmid: int, lab_name: str, exerc
             try:
                 guac_token = guac_auth()
                 rdp_user = exercise.get("lab_username", "Administrator")
-                rdp_pass = exercise.get("lab_password", "Lab2026!")
+                rdp_pass = exercise.get("lab_password", LAB_DEFAULT_PASSWORD)
                 conn = guac_create_connection(guac_token, lab_name, vm_ip, username=rdp_user, password=rdp_pass)
                 guac_conn_id = str(conn.get("identifier", ""))
                 conn_str = f"{guac_conn_id}\0c\0postgresql"
@@ -2833,7 +2908,7 @@ async def get_lab_status(exercise_id: str, current_user: dict = Depends(auth_dep
                             exercise = await db.exercises.find_one({"id": exercise_id}, {"_id": 0})
                             guac_token = guac_auth()
                             rdp_user = exercise.get("lab_username", "Administrator") if exercise else "Administrator"
-                            rdp_pass = exercise.get("lab_password", "Lab2026!") if exercise else "Lab2026!"
+                            rdp_pass = exercise.get("lab_password", LAB_DEFAULT_PASSWORD) if exercise else LAB_DEFAULT_PASSWORD
                             conn = guac_create_connection(guac_token, lab["vm_name"], ip, username=rdp_user, password=rdp_pass)
                             guac_conn_id = str(conn.get("identifier", ""))
                             conn_str = f"{guac_conn_id}\0c\0postgresql"
@@ -3105,7 +3180,12 @@ async def get_student_detailed_stats(current_user: dict = Depends(auth_dependenc
 
 # Include router and middleware
 app.include_router(api_router)
-app.add_middleware(CORSMiddleware, allow_credentials=True, allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','), allow_methods=["*"], allow_headers=["*"])
+# CORS — Warn if wildcard in production
+_cors_origins = os.environ.get('CORS_ORIGINS', '*').split(',')
+_cors_origins = [o.strip() for o in _cors_origins if o.strip()]
+if '*' in _cors_origins and os.environ.get('ENV', 'dev') == 'production':
+    logger.warning("SECURITE: CORS_ORIGINS=* en production — restreignez aux domaines autorises !")
+app.add_middleware(CORSMiddleware, allow_credentials=True, allow_origins=_cors_origins, allow_methods=["*"], allow_headers=["*"])
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
