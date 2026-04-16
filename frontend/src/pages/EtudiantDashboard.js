@@ -11,9 +11,8 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import {
-  RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine,
-  BarChart, Bar
+  BarChart, Bar, Cell
 } from 'recharts';
 
 const CustomTooltip = ({ active, payload, label }) => {
@@ -251,18 +250,23 @@ export default function EtudiantDashboard() {
         <Card className="bg-white/90 dark:bg-zinc-900/50 backdrop-blur-md border-gray-200 dark:border-zinc-800 shadow-sm dark:shadow-none hover-lift">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2" style={{ fontFamily: 'Space Grotesk' }}>
-              <BarChart3 className="w-4 h-4 text-violet-400" /> Performance par categorie
+              <BarChart3 className="w-4 h-4 text-violet-400" /> Score moyen par categorie
             </CardTitle>
           </CardHeader>
           <CardContent>
             {radarData.length > 0 ? (
               <ResponsiveContainer width="100%" height={200}>
-                <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="70%">
-                  <PolarGrid stroke="var(--card-border)" />
-                  <PolarAngleAxis dataKey="category" tick={{ fill: 'var(--text-muted)', fontSize: 9 }} />
-                  <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fill: 'var(--text-faint)', fontSize: 8 }} />
-                  <Radar name="Score (%)" dataKey="score" stroke="#8b5cf6" fill="#8b5cf6" fillOpacity={0.3} strokeWidth={2} />
-                </RadarChart>
+                <BarChart data={radarData} margin={{ left: 0, right: 10, bottom: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--card-border)" />
+                  <XAxis dataKey="category" tick={{ fill: 'var(--text-muted)', fontSize: 11 }} angle={-20} textAnchor="end" interval={0} height={50} />
+                  <YAxis domain={[0, 100]} tick={{ fill: 'var(--text-muted)', fontSize: 10 }} unit="%" />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Bar dataKey="score" name="Score" radius={[4, 4, 0, 0]} barSize={36}>
+                    {radarData.map((entry, i) => (
+                      <Cell key={i} fill={entry.score >= 70 ? '#8b5cf6' : entry.score >= 40 ? '#06b6d4' : '#f59e0b'} />
+                    ))}
+                  </Bar>
+                </BarChart>
               </ResponsiveContainer>
             ) : (
               <p className="th-text-muted text-sm text-center py-10">Pas encore de donnees par categorie</p>

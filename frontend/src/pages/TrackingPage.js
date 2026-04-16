@@ -96,13 +96,13 @@ export default function TrackingPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={Math.max(180, chartData.length * 40)}>
-              <BarChart data={chartData} layout="vertical" margin={{ left: 10, right: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-                <XAxis type="number" domain={[0, 100]} tick={{ fill: '#71717a', fontSize: 10 }} />
-                <YAxis dataKey="name" type="category" width={80} tick={{ fill: '#a1a1aa', fontSize: 11 }} />
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={chartData} margin={{ left: 10, right: 20, bottom: 40 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--card-border)" />
+                <XAxis dataKey="name" type="category" tick={{ fill: 'var(--text-muted)', fontSize: 12 }} angle={-30} textAnchor="end" interval={0} height={60} />
+                <YAxis type="number" domain={[0, 100]} tick={{ fill: 'var(--text-muted)', fontSize: 11 }} unit="%" />
                 <Tooltip content={<CustomTooltip />} />
-                <Bar dataKey="score" name="Score moyen" radius={[0, 4, 4, 0]}>
+                <Bar dataKey="score" name="Score moyen" radius={[4, 4, 0, 0]} barSize={40}>
                   {chartData.map((entry, i) => (
                     <Cell key={i} fill={entry.score >= 50 ? '#10b981' : entry.score > 0 ? '#f59e0b' : '#3f3f46'} />
                   ))}
