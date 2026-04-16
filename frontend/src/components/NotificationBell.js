@@ -88,7 +88,7 @@ export default function NotificationBell() {
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-10 w-80 max-h-96 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-xl shadow-xl z-50 overflow-hidden animate-scale-in">
+          <div className="fixed left-64 top-12 w-80 max-h-96 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-xl shadow-xl z-50 overflow-hidden animate-scale-in">
             <div className="flex items-center justify-between p-3 border-b border-gray-200 dark:border-zinc-800">
               <span className="text-sm font-semibold th-text" style={{ fontFamily: 'Space Grotesk' }}>Notifications</span>
               {unreadCount > 0 && (

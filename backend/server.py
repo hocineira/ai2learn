@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, Depends, HTTPException, status, Header, UploadFile, File, Form
+from fastapi import FastAPI, APIRouter, Depends, HTTPException, status, Header, UploadFile, File, Form, Request
 from fastapi.responses import FileResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
@@ -353,23 +353,66 @@ async def register(data: UserCreate):
     return {"token": token, "user": user_response(user_doc)}
 
 @api_router.post("/auth/login")
-async def login(data: UserLogin):
+async def login(data: UserLogin, request: Request):
+    client_ip = request.headers.get("x-forwarded-for", request.headers.get("x-real-ip", request.client.host if request.client else "unknown"))
+    if "," in client_ip:
+        client_ip = client_ip.split(",")[0].strip()
+    user_agent = request.headers.get("user-agent", "unknown")
+    
     # Search by email or legacy username
     user = await db.users.find_one({"$or": [{"email": data.email}, {"username": data.email}]}, {"_id": 0})
     if not user or not verify_password(data.password, user["password"]):
+        # Log failed attempt
+        try:
+            await db.login_attempts.insert_one({
+                "id": str(uuid.uuid4()),
+                "email": data.email,
+                "ip": client_ip,
+                "user_agent": user_agent,
+                "success": False,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            })
+        except Exception:
+            pass
         raise HTTPException(status_code=401, detail="Identifiants incorrects")
+    
     token = create_token(user["id"], user["role"])
     
-    # Log login history
+    # Log successful login
     try:
+        now_iso = datetime.now(timezone.utc).isoformat()
         await db.login_history.insert_one({
             "id": str(uuid.uuid4()),
             "user_id": user["id"],
             "user_name": user.get("full_name", ""),
             "user_email": user.get("email", user.get("username", "")),
             "role": user.get("role", ""),
-            "logged_at": datetime.now(timezone.utc).isoformat(),
+            "ip": client_ip,
+            "user_agent": user_agent,
+            "logged_at": now_iso,
         })
+        await db.login_attempts.insert_one({
+            "id": str(uuid.uuid4()),
+            "email": data.email,
+            "ip": client_ip,
+            "user_agent": user_agent,
+            "success": True,
+            "timestamp": now_iso,
+        })
+        # Track active session
+        await db.active_sessions.update_one(
+            {"user_id": user["id"]},
+            {"$set": {
+                "user_id": user["id"],
+                "user_name": user.get("full_name", ""),
+                "user_email": user.get("email", ""),
+                "role": user.get("role", ""),
+                "ip": client_ip,
+                "user_agent": user_agent,
+                "last_seen": now_iso,
+            }},
+            upsert=True
+        )
     except Exception:
         pass
     
@@ -1365,11 +1408,110 @@ async def handle_password_request(request_id: str, current_user: dict = Depends(
 
 @api_router.get("/login-history")
 async def get_login_history(current_user: dict = Depends(auth_dependency)):
-    """Admin: get login history"""
+    """Admin: get login history with IP"""
     if current_user["role"] not in ["admin", "formateur"]:
         raise HTTPException(status_code=403, detail="Acces refuse")
     history = await db.login_history.find({}, {"_id": 0}).sort("logged_at", -1).to_list(200)
     return history
+
+# ─── Server Monitoring ───
+
+@api_router.get("/monitoring/active-sessions")
+async def get_active_sessions(current_user: dict = Depends(auth_dependency)):
+    """Admin: get currently active sessions"""
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin uniquement")
+    sessions = await db.active_sessions.find({}, {"_id": 0}).to_list(500)
+    return sessions
+
+@api_router.get("/monitoring/login-attempts")
+async def get_login_attempts(current_user: dict = Depends(auth_dependency)):
+    """Admin: get all login attempts (success + failed)"""
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin uniquement")
+    attempts = await db.login_attempts.find({}, {"_id": 0}).sort("timestamp", -1).to_list(500)
+    return attempts
+
+@api_router.get("/monitoring/brute-force")
+async def get_brute_force_stats(current_user: dict = Depends(auth_dependency)):
+    """Admin: detect brute force attempts - IPs/emails with many failed attempts"""
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin uniquement")
+    
+    # Failed attempts in last 24h
+    from datetime import timedelta
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
+    
+    failed = await db.login_attempts.find(
+        {"success": False, "timestamp": {"$gte": cutoff}},
+        {"_id": 0}
+    ).to_list(5000)
+    
+    # Group by IP
+    ip_counts = {}
+    email_counts = {}
+    for f in failed:
+        ip = f.get("ip", "unknown")
+        email = f.get("email", "unknown")
+        ip_counts[ip] = ip_counts.get(ip, 0) + 1
+        email_counts[email] = email_counts.get(email, 0) + 1
+    
+    suspicious_ips = [{"ip": ip, "attempts": count} for ip, count in sorted(ip_counts.items(), key=lambda x: -x[1]) if count >= 3]
+    suspicious_emails = [{"email": email, "attempts": count} for email, count in sorted(email_counts.items(), key=lambda x: -x[1]) if count >= 3]
+    
+    # Total stats
+    total_failed_24h = len(failed)
+    total_success_24h = await db.login_attempts.count_documents({"success": True, "timestamp": {"$gte": cutoff}})
+    
+    return {
+        "total_failed_24h": total_failed_24h,
+        "total_success_24h": total_success_24h,
+        "suspicious_ips": suspicious_ips,
+        "suspicious_emails": suspicious_emails,
+        "recent_failed": failed[:20],
+    }
+
+@api_router.get("/monitoring/server-stats")
+async def get_server_stats(current_user: dict = Depends(auth_dependency)):
+    """Admin: get server statistics"""
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin uniquement")
+    
+    import platform
+    
+    total_users = await db.users.count_documents({})
+    total_students = await db.users.count_documents({"role": "etudiant"})
+    total_exercises = await db.exercises.count_documents({})
+    total_submissions = await db.submissions.count_documents({})
+    total_courses = await db.courses.count_documents({})
+    total_notifications = await db.notifications.count_documents({})
+    active_sessions = await db.active_sessions.count_documents({})
+    
+    # DB collections sizes
+    collections = await db.list_collection_names()
+    db_stats = {}
+    for col in collections:
+        count = await db[col].count_documents({})
+        db_stats[col] = count
+    
+    return {
+        "server": {
+            "python_version": platform.python_version(),
+            "os": f"{platform.system()} {platform.release()}",
+            "hostname": platform.node(),
+            "architecture": platform.machine(),
+        },
+        "database": {
+            "total_users": total_users,
+            "total_students": total_students,
+            "total_exercises": total_exercises,
+            "total_submissions": total_submissions,
+            "total_courses": total_courses,
+            "total_notifications": total_notifications,
+            "active_sessions": active_sessions,
+            "collections": db_stats,
+        },
+    }
 
 # ─── Manual Feedback ───
 
