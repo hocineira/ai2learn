@@ -76,6 +76,7 @@ function App() {
             <Route path="/dashboard" element={<ProtectedRoute><DashboardRouter /></ProtectedRoute>} />
             <Route path="/exercises" element={<ProtectedRoute><ExercisesPage /></ProtectedRoute>} />
             <Route path="/exercises/create" element={<ProtectedRoute roles={['admin', 'formateur']}><ExerciseCreate /></ProtectedRoute>} />
+            <Route path="/exercises/edit/:id" element={<ProtectedRoute roles={['admin', 'formateur']}><ExerciseCreate /></ProtectedRoute>} />
             <Route path="/exercises/:id" element={<ProtectedRoute><ExerciseTake /></ProtectedRoute>} />
             <Route path="/users" element={<ProtectedRoute roles={['admin']}><UsersPage /></ProtectedRoute>} />
             <Route path="/tracking" element={<ProtectedRoute roles={['admin', 'formateur']}><TrackingPage /></ProtectedRoute>} />

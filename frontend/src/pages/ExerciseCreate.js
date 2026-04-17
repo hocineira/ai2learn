@@ -6,12 +6,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PlusCircle, Trash2, GripVertical, Save, GraduationCap, Shield, Monitor, BookOpen } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 
 export default function ExerciseCreate() {
   const { getAuthHeaders, API, activeFormation } = useAuth();
   const navigate = useNavigate();
+  const { id: editId } = useParams();
+  const isEdit = Boolean(editId);
   const [categories, setCategories] = useState([]);
   const [formations, setFormations] = useState([]);
   const [title, setTitle] = useState('');
@@ -25,7 +27,8 @@ export default function ExerciseCreate() {
   const [exerciseType, setExerciseType] = useState('standard');
   const [labInstructions, setLabInstructions] = useState('');
   const [labUsername, setLabUsername] = useState('Administrator');
-  const [labPassword, setLabPassword] = useState('Lab2026!');
+  const [labPassword, setLabPassword] = useState('');
+  const [loadingExercise, setLoadingExercise] = useState(false);
 
   useEffect(() => {
     const headers = getAuthHeaders();
@@ -37,6 +40,34 @@ export default function ExerciseCreate() {
       setFormations(fRes.data);
     }).catch(console.error);
   }, [API, getAuthHeaders, formation]);
+
+  // Load existing exercise in edit mode
+  useEffect(() => {
+    if (!editId) return;
+    setLoadingExercise(true);
+    const loadExercise = async () => {
+      try {
+        const res = await axios.get(`${API}/exercises/${editId}`, { headers: getAuthHeaders() });
+        const ex = res.data;
+        setTitle(ex.title || '');
+        setDescription(ex.description || '');
+        setCategory(ex.category || '');
+        setFormation(ex.formation || 'bts-sio-sisr');
+        setShared(ex.shared || false);
+        setTimeLimit(ex.time_limit || 0);
+        setExerciseType(ex.exercise_type || 'standard');
+        setLabInstructions(ex.lab_instructions || '');
+        setLabUsername(ex.lab_username || 'Administrator');
+        setLabPassword(ex.lab_password || '');
+        setQuestions(ex.questions || []);
+      } catch (err) {
+        toast.error('Exercice introuvable');
+        navigate('/exercises');
+      }
+      setLoadingExercise(false);
+    };
+    loadExercise();
+  }, [editId, API, getAuthHeaders, navigate]);
 
   const generateId = () => {
     try { return crypto.randomUUID(); } catch { return 'q-' + Math.random().toString(36).substr(2, 9) + '-' + Date.now(); }
@@ -68,7 +99,7 @@ export default function ExerciseCreate() {
     }
     setSaving(true);
     try {
-      await axios.post(`${API}/exercises`, {
+      const payload = {
         title, description, category, formation, shared,
         time_limit: parseInt(timeLimit) || 0,
         exercise_type: exerciseType,
@@ -76,20 +107,28 @@ export default function ExerciseCreate() {
         lab_username: exerciseType === 'lab' ? labUsername : undefined,
         lab_password: exerciseType === 'lab' ? labPassword : undefined,
         questions: questions.map(q => ({ ...q, points: parseInt(q.points) || 1 })),
-      }, { headers: getAuthHeaders() });
-      toast.success('Exercice cree avec succes');
+      };
+      if (isEdit) {
+        await axios.put(`${API}/exercises/${editId}`, payload, { headers: getAuthHeaders() });
+        toast.success('Exercice modifie avec succes');
+      } else {
+        await axios.post(`${API}/exercises`, payload, { headers: getAuthHeaders() });
+        toast.success('Exercice cree avec succes');
+      }
       navigate('/exercises');
-    } catch (err) { toast.error(err.response?.data?.detail || 'Erreur lors de la creation'); }
+    } catch (err) { toast.error(err.response?.data?.detail || 'Erreur'); }
     setSaving(false);
   };
+
+  if (loadingExercise) return <div className="th-text-muted text-center py-20">Chargement de l'exercice...</div>;
 
   return (
     <div className="space-y-6 max-w-5xl" data-testid="exercise-create-page">
       <div>
         <h1 className="text-3xl font-bold tracking-tight" style={{ fontFamily: 'Space Grotesk' }}>
-          <span className="text-gradient">Creer</span> un exercice
+          <span className="text-gradient">{isEdit ? 'Modifier' : 'Creer'}</span> un exercice
         </h1>
-        <p className="text-gray-500 dark:text-zinc-500 mt-1">Definissez les questions et parametres</p>
+        <p className="text-gray-500 dark:text-zinc-500 mt-1">{isEdit ? 'Modifiez les questions et parametres' : 'Definissez les questions et parametres'}</p>
       </div>
 
       <Card className="bg-white/90 dark:bg-zinc-900/50 backdrop-blur-md border-gray-200 dark:border-gray-200 dark:border-zinc-800 shadow-sm dark:shadow-none">
@@ -241,7 +280,7 @@ export default function ExerciseCreate() {
 
       <div className="flex justify-end pt-4 border-t border-gray-200 dark:border-zinc-800">
         <Button data-testid="save-exercise-btn" onClick={handleSubmit} disabled={saving} className="bg-gradient-to-r from-cyan-600 to-violet-600 hover:from-cyan-500 hover:to-violet-500 text-white px-6">
-          <Save className="w-4 h-4 mr-2" /> {saving ? 'Enregistrement...' : 'Enregistrer'}
+          <Save className="w-4 h-4 mr-2" /> {saving ? 'Enregistrement...' : isEdit ? 'Sauvegarder' : 'Enregistrer'}
         </Button>
       </div>
     </div>

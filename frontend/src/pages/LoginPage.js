@@ -128,10 +128,6 @@ export default function LoginPage() {
             </div>
           </CardContent>
         </Card>
-
-        <div className="mt-4 text-center animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
-          <p className="text-xs text-gray-400 dark:text-zinc-600">Demo: admin@netbfrs.fr/admin123 | formateur@netbfrs.fr/formateur123 | alice.martin@netbfrs.fr/etudiant123 | claire.petit@netbfrs.fr/etudiant123</p>
-        </div>
       </div>
     </div>
   );
